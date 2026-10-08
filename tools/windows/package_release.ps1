@@ -57,7 +57,8 @@ Windows
  1. Run Launcher.exe.
  2. Press "Choose disc image..." and pick your .iso (it is checked and remembered).
  3. Press Play.
- (Or put the .iso in this folder: the launcher finds it by itself.)
+ Or put the .iso in this folder and run $Id.exe directly: the game finds it by itself and
+ starts, no launcher needed.
 
 Linux / Steam Deck, through Proton (start the game itself, not the launcher: the launcher
 still has bugs under Proton)
