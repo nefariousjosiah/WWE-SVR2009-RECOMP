@@ -4,9 +4,11 @@ The Xbox 360 version of **WWE SmackDown vs. Raw 2009**, running natively on Wind
 Steam Deck: no emulator. The game's own program is recompiled to run directly on your PC, and its
 graphics go through a native Vulkan renderer, at 60 fps and up to 4K.
 
-> **You need your own copy of the game.** This project contains none of the game's files and never
-> downloads any. It only runs with a disc image (`.iso`) made from your own SvR 2009 disc. It does
-> not condone piracy: please buy the game.
+> **You need your own copy of the game.** None of the files from the game disc are in this project
+> or its downloads, and nothing is ever downloaded for you: the game runs from a disc image
+> (`.iso`) made from your own SvR 2009 disc. It does not condone piracy: please buy the game.
+
+![The launcher: point it at your disc image and press Play](docs/launcher.png)
 
 ## Showcase
 
@@ -23,6 +25,8 @@ graphics go through a native Vulkan renderer, at 60 fps and up to 4K.
 - **Up to 4K.** Internal resolution follows your screen: 1440p on 1080p and 1440p monitors, 4K on
   4K monitors, 720p on the Steam Deck. Or pick 720p / 1440p / 4K yourself. 16x anisotropic
   filtering.
+- **A simple launcher:** choose your disc image once (it checks it's the right game and release),
+  change settings, press Play. Works with a controller, so it's at home on the Steam Deck.
 - **Steam Deck** through Proton: 720p at 60 fps, the correct 16:9 shape (or stretched to fill).
 - **Plays straight from your disc image**: nothing is extracted or installed.
 - **Controllers** (Xbox, PlayStation, Switch Pro, the Deck's controls) through SDL; the keyboard
@@ -31,10 +35,11 @@ graphics go through a native Vulkan renderer, at 60 fps and up to 4K.
 ## What you need
 
 - **Your own SvR 2009 disc image**, USA / Europe release (one release for both regions: title ID
-  `54510826`, media ID `7AFA4596`, about 7.3 GB). Other releases aren't supported yet.
+  `54510826`, media ID `7AFA4596`, about 7.3 GB). The launcher tells you if yours is a different
+  release; those aren't supported yet.
 - **Windows 10 or 11, 64-bit**, and a graphics card with **Vulkan** support (AMD, NVIDIA or Intel,
   with a recent driver). Or a **Steam Deck**.
-- About 120 MB for the program, plus your disc image.
+- About 130 MB for the program, plus your disc image.
 
 ## Windows: install and play
 
@@ -43,27 +48,21 @@ graphics go through a native Vulkan renderer, at 60 fps and up to 4K.
    *Assets*; not *Source code*, which is the developer source).
 2. Extract it to a folder of its own, for example `C:\Games\WWE-SVR2009-Native`
    (not inside `Program Files`).
-3. Put your disc image (`.iso`) in that folder, next to `svr2009.exe`.
-4. Run `svr2009.exe`.
+3. Run **`Launcher.exe`** in that folder.
+4. Press **Choose disc image...** and pick your `.iso`, wherever it is. The launcher checks it and
+   remembers it. (Or copy the `.iso` into the folder: the launcher finds it by itself.)
+5. Press **Play**.
 
 Good to know:
 
-- **Disc image somewhere else?** Start `svr2009.exe` without an `.iso` next to it and it asks you
-  to pick one; it remembers your choice.
-- **Settings** are in `svr2009.toml` next to the program (open it with Notepad):
-
-  | Setting | Values |
-  |---|---|
-  | `svr_render_scale` | `0` auto, `1` 720p (original), `2` 1440p, `3` 4K |
-  | `fullscreen` | `true` / `false` |
-  | `svr_60fps` | `true` 60 fps / `false` the original 30 |
-  | `bd_aspect_ratio` | `5` the game's 16:9 (bars on 16:10 screens), `6` stretch to fill |
-
+- **Settings** (button in the launcher): resolution (Auto, 720p, 1440p, 4K), fullscreen or window,
+  60 or 30 fps, screen shape. They are saved in `svr2009.toml`.
 - **"Windows protected your PC"**: the program isn't code-signed. Click *More info* and then
   *Run anyway*.
-- **Quitting:** close the game window (Alt+F4 or the close button).
-- **Saves** live in the `userdata` folder next to `svr2009.exe`. Back it up to keep your career
-  and created superstars.
+- **Quitting:** close the game window (Alt+F4 or the close button); the launcher comes back.
+- **Saves** live in the `userdata` folder. Back it up to keep your career and created superstars.
+- **Box art:** the launcher shows the game's cover; drop another image onto it to change it.
+- Starting `svr2009.exe` directly works too: it uses the disc image the launcher remembered.
 
 ### Controls
 
@@ -94,38 +93,43 @@ The Windows release runs on the Deck through Proton, Steam's compatibility layer
 2. **Extract it.** In the *Dolphin* file manager, make a folder such as
    `/home/deck/Games/WWE-SVR2009-Native`, right-click the zip, *Extract*, *Extract archive to...*,
    and choose that folder. (A microSD card works too.)
-3. **Add your disc image.** Copy your `.iso` into that folder, next to `svr2009.exe`.
+3. **Add your disc image.** Copy your `.iso` into that folder. The launcher finds it there.
 4. **Add it to Steam.** Open Steam (desktop), then *Games* > *Add a Non-Steam Game to My
-   Library...* > *Browse...*. Set the file type filter to *All files*, pick `svr2009.exe` in your
+   Library...* > *Browse...*. Set the file type filter to *All files*, pick `Launcher.exe` in your
    folder, then *Add Selected Programs*.
-5. **Turn on Proton.** In your library, right-click *svr2009* > *Properties...* >
+5. **Turn on Proton.** In your library, right-click *Launcher* > *Properties...* >
    *Compatibility*, tick *Force the use of a specific Steam Play compatibility tool* and choose
    **Proton Experimental** (or the newest Proton). While you are there, rename the shortcut to
    *WWE SmackDown vs. Raw 2009*.
 
 **Back in Game Mode** (the *Return to Gaming Mode* icon on the desktop):
 
-6. Start it from *Library* > *Non-Steam*.
+6. Start it from *Library* > *Non-Steam*. The launcher opens fullscreen and says *Ready to play*:
+   press **A** on **Play**. Quitting the game brings you back to the launcher.
 
 Notes for the Deck:
 
 - **The first start** takes a little longer while Proton sets itself up.
 - **Black bars:** the game is 16:9 and the Deck's screen is 16:10, so there are thin bars above
-  and below. To fill the screen instead, open `svr2009.toml` in Desktop Mode (right-click,
-  *Open with* a text editor such as *KWrite*) and set `bd_aspect_ratio = 6`; the picture gets a
-  little taller.
+  and below. *Settings* > *Screen shape* > *Stretch to fill* removes them (the picture gets a
+  little taller).
 - **Controls:** the Deck's built-in controls work as an Xbox controller with Steam's default
   layout.
 - **Artwork:** Steam's library artwork for the shortcut can be set from its properties.
 
 ## Troubleshooting
 
-| What you see | What to do |
+| What the launcher says | What to do |
 |---|---|
-| The game asks you to pick a disc image | There is no `.iso` next to `svr2009.exe`. Pick yours, or copy it into the folder. |
-| The game closes right away | Check the disc image is SvR 2009, USA / Europe release (about 7.3 GB). |
-| Black screen, or it closes during play | Update your graphics driver (the renderer needs Vulkan), then try again. If it keeps happening, open an issue with `game.log` from the game's folder. |
-| It runs slowly | Set `svr_render_scale = 1` (720p) or `2` (1440p) in `svr2009.toml`: lower resolutions need less from the graphics card. |
+| *Choose your disc image* | It hasn't found one yet: press **Choose disc image...**, or copy your `.iso` into the game's folder and press **Look again**. |
+| *Different disc release* | Your disc image is another release of the game; only the USA / Europe release is supported so far. |
+| *That's a different game* | The file is a disc image of another game: choose your SvR 2009 one. |
+| *That file can't be used* | It isn't a complete Xbox 360 disc image (it should be about 7.3 GB). |
+
+| What happens | What to do |
+|---|---|
+| Black screen, or the game closes | Update your graphics driver (the renderer needs Vulkan), then try again. If it keeps happening, open an issue with `game.log` from the game's folder. |
+| It runs slowly | *Settings* > *Resolution* > **720p** or **1440p**: lower resolutions need less from the graphics card. |
 | Windows blocks it | *More info* > *Run anyway* (the program isn't code-signed). |
 
 ## How it works
@@ -165,11 +169,12 @@ and a match or two with shader dumping on, run `tools\native\build_shader_cache.
 `setup.ps1` again.
 
 Afterwards: `tools\windows\build.ps1` rebuilds, `Play WWE 2009.bat` runs it, and
-`tools\windows\package_release.ps1 -Version 1.0` makes the release zip (no game files).
+`tools\windows\package_release.ps1 -Version 1.0` makes the release zip (game, launcher, no game
+files; the launcher is built with `launcher\build.ps1`).
 
 Repository layout: `src/` the game-specific code (`native/` renderer glue, `reblue/` the renderer),
-`config/` recompiler configuration, `patches/` changes to the third-party sources, `tools/` scripts,
-`docs/` notes.
+`launcher/` the launcher, `config/` recompiler configuration, `patches/` changes to the third-party
+sources, `tools/` scripts, `docs/` notes.
 
 ## Credits
 
@@ -178,16 +183,20 @@ Repository layout: `src/` the game-specific code (`native/` renderer glue, `rebl
 - [re:Blue](https://github.com/zolaware/reblue) (Blue Dragon), the renderer this one is adapted
   from, with [plume](https://github.com/zolaware/plume) and
   [XenosRecomp](https://github.com/zolaware/reblue-XenosRecomp).
+- The launcher: [SDL](https://libsdl.org), [Dear ImGui](https://github.com/ocornut/imgui),
+  [stb_image](https://github.com/nothings/stb), the Roboto font.
 - [zstd](https://github.com/facebook/zstd); the Press Start 2P font.
 
 Licences of all of these: [THIRD_PARTY.md](THIRD_PARTY.md).
 
 ## Licence and legal
 
-This project's own code is MIT licensed ([LICENSE](LICENSE)). The repository contains no game code
-or data; the releases contain the recompiled program, and every bit of game data (models,
-textures, sound, video) comes from your own disc image.
+This project's own code is MIT licensed ([LICENSE](LICENSE)). None of the files from the game
+disc are in this repository or the releases: the game's data (models, textures, sound, video)
+comes from your own disc image. The releases do contain the game's program in recompiled form
+(`svr2009.exe`, with the game's shaders converted for PC).
 
-WWE, SmackDown vs. Raw and all related names, characters and content belong to their respective
-owners (WWE, THQ, Yuke's). This is an unofficial fan project, not affiliated with or endorsed by
-them or by Microsoft.
+WWE, SmackDown vs. Raw and all related names, characters, content and the box art shown by the
+launcher belong to their respective owners (WWE, THQ, Yuke's); the box art is used only to
+identify the game. This is an unofficial fan project, not affiliated with or endorsed by them or by
+Microsoft.

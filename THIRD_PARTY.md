@@ -8,3 +8,8 @@
 | [XenosRecomp](https://github.com/zolaware/reblue-XenosRecomp) (build tool, shader recompiler) | fetched at `339af41`, plus `patches/xenosrecomp.patch` | MIT |
 | [zstd](https://github.com/facebook/zstd) (decompression, single-file decoder) | `third_party/reblue_thirdparty/zstd` | BSD, `third_party/reblue_thirdparty/zstd/LICENSE` |
 | Press Start 2P font (FPS counter) | `res/fonts` | SIL Open Font License 1.1, `res/fonts/OFL.txt` |
+| [SDL 3](https://github.com/libsdl-org/SDL) (launcher window, controller, file dialogs) | the SDK's copy, `third_party/rexglue-sdk/thirdparty/sdl3`, built by `launcher/CMakeLists.txt` | zlib |
+| [Dear ImGui](https://github.com/ocornut/imgui) 1.92.5 (launcher UI) | `launcher/third_party/imgui` | MIT, `launcher/third_party/imgui/LICENSE.txt` |
+| [stb_image](https://github.com/nothings/stb) 2.29 (launcher box art) | `launcher/third_party/stb` | public domain or MIT (end of `stb_image.h`) |
+| Roboto Medium font (launcher) | `launcher/res/fonts` | Apache 2.0, `launcher/res/fonts/LICENSE-Roboto.txt` |
+| Box art (`launcher/res/cover.jpg`) | shown by the launcher | owned by THQ / WWE; used only to identify the game |

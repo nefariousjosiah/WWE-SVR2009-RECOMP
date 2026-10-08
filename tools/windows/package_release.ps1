@@ -1,7 +1,7 @@
 # Build the public release zip: this game's native build, WITHOUT any game files.
 #   powershell -ExecutionPolicy Bypass -File tools\windows\package_release.ps1 [-Version 1.0]
 # Output: dist\WWE-SVR2009-Native-v<version>-Windows-and-SteamDeck.zip (and the unpacked folder).
-# Players put their own disc image next to svr2009.exe; the game finds it there.
+# Players open Launcher.exe and point it at their own disc image (or put it next to svr2009.exe).
 param([string]$Version = "dev")
 $ErrorActionPreference = "Stop"
 $Root = (Resolve-Path "$PSScriptRoot\..\..").Path
@@ -24,6 +24,12 @@ Copy-Item "$Build\fonts" $Out -Recurse
 foreach ($f in "msvcp140.dll", "msvcp140_atomic_wait.dll", "vcruntime140.dll", "vcruntime140_1.dll") {
   Copy-Item "$env:WINDIR\System32\$f" $Out
 }
+# The launcher: picks the disc image, keeps the settings, starts the game.
+& powershell -ExecutionPolicy Bypass -File "$Root\launcher\build.ps1"
+if ($LASTEXITCODE) { throw "launcher build failed" }
+Copy-Item "$Root\out\launcher\Launcher.exe" $Out
+Copy-Item "$Root\launcher\res\fonts\Roboto-Medium.ttf" "$Out\fonts"
+Copy-Item "$Root\launcher\res\cover.jpg" "$Out\cover.jpg"  # the game's box art (THQ / WWE)
 
 @"
 # $Title settings. Edit with any text editor; command-line arguments override these.
@@ -43,25 +49,28 @@ log_file = "game.log"
 @"
 $Title - native PC / Steam Deck version
 
-YOU NEED YOUR OWN COPY OF THE GAME. This download contains no game files and never downloads
-any. It only runs from a disc image (.iso) of your own disc (USA / Europe release). It does not
-condone piracy.
+YOU NEED YOUR OWN COPY OF THE GAME. This download contains none of the files from the game disc
+and never downloads any: the game's data (models, textures, sound, video) is read from a disc
+image (.iso) of your own disc, USA / Europe release. It does not condone piracy.
 
 Windows
- 1. Put your disc image (.iso) in this folder, next to $Id.exe.
- 2. Run $Id.exe.
- (Without an .iso here, the game asks you to pick one the first time and remembers it.)
+ 1. Run Launcher.exe.
+ 2. Press "Choose disc image..." and pick your .iso (it is checked and remembered).
+ 3. Press Play.
+ (Or put the .iso in this folder: the launcher finds it by itself.)
 
 Steam Deck
  1. In Desktop Mode, extract this folder to the Deck (for example /home/deck/Games/$Name)
-    and put your .iso next to $Id.exe.
- 2. Steam > Games > Add a Non-Steam Game to My Library > Browse > pick $Id.exe
+    and copy your .iso into it.
+ 2. Steam > Games > Add a Non-Steam Game to My Library > Browse > pick Launcher.exe
     (set the file type filter to All files).
  3. The shortcut's Properties > Compatibility > Force the use of a specific Steam Play
     compatibility tool > Proton Experimental.
- 4. Play it from Game Mode.
+ 4. Start it from Game Mode and press A on Play.
 
-Settings: $Id.toml (resolution up to 4K, fullscreen, 60 or 30 fps, screen shape).
+Settings: the launcher's Settings button (resolution up to 4K, fullscreen or window, 60 or
+30 fps, screen shape), saved in $Id.toml. Box art: cover.jpg (drop another image on the
+launcher to change it).
 Saves: the userdata folder (created on first start). If something goes wrong, send game.log.
 "@ | Set-Content "$Out\README.txt" -Encoding ascii
 
@@ -73,8 +82,13 @@ $Notices = @{
   "third_party\plume\LICENSE" = "plume (MIT).txt"
   "third_party\reblue_thirdparty\zstd\LICENSE" = "zstd (BSD).txt"
   "res\fonts\OFL.txt" = "Press Start 2P font (OFL).txt"
+  "third_party\rexglue-sdk\thirdparty\sdl3\LICENSE.txt" = "SDL3 (zlib).txt"
+  "launcher\third_party\imgui\LICENSE.txt" = "Dear ImGui (MIT).txt"
+  "launcher\res\fonts\LICENSE-Roboto.txt" = "Roboto font (Apache-2.0).txt"
 }
 foreach ($k in $Notices.Keys) { Copy-Item "$Root\$k" "$Out\licenses\$($Notices[$k])" }
+"stb_image (Sean Barrett): public domain, or MIT License at your choice; see the end of
+stb_image.h at https://github.com/nothings/stb" | Set-Content "$Out\licenses\stb_image.txt" -Encoding ascii
 
 $Zip = "$Root\dist\$Name-v$Version-Windows-and-SteamDeck.zip"
 if (Test-Path $Zip) { Remove-Item $Zip -Force }
