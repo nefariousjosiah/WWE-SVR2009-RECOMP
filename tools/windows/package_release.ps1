@@ -1,7 +1,7 @@
 # Build the public release zip: the shared launcher (launcher\ submodule) plus this game's native
 # build, WITHOUT any game files. Players add their own disc image.
 #   powershell -ExecutionPolicy Bypass -File tools\windows\package_release.ps1 [-Version 1.0]
-# Output: dist\WWE-SVR2009-Native-<version>.zip (and the unpacked folder next to it).
+# Output: dist\WWE-SVR2009-Native-v<version>-Windows-and-SteamDeck.zip (and the unpacked folder).
 # Extracting this game's and the other game's release into one folder gives one launcher with both.
 param([string]$Version = "dev")
 $ErrorActionPreference = "Stop"
@@ -33,7 +33,7 @@ $Notices = @{
 }
 foreach ($k in $Notices.Keys) { Copy-Item "$Root\$k" "$Lic\$($Notices[$k])" -Force }
 
-$Zip = "$Out.zip"
+$Zip = "$Root\dist\$Name-v$Version-Windows-and-SteamDeck.zip"
 if (Test-Path $Zip) { Remove-Item $Zip -Force }
 Compress-Archive -Path "$Out\*" -DestinationPath $Zip
 Write-Host ("Release: {0} ({1:N0} MB)" -f $Zip, ((Get-Item $Zip).Length / 1MB))

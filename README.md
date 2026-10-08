@@ -46,8 +46,9 @@ one folder and it lists both games.
 
 ## Windows: install and play
 
-1. Download `WWE-SVR2009-Native-<version>.zip` from the
-   [Releases](https://github.com/nefariousjosiah/WWE-SVR2009-Native/releases) page.
+1. Download `WWE-SVR2009-Native-v<version>-Windows-and-SteamDeck.zip` from the
+   [Releases](https://github.com/nefariousjosiah/WWE-SVR2009-Native/releases) page (under
+   *Assets*; not *Source code*, which is the developer source without `Launcher.exe`).
 2. Extract it to a folder of its own, for example `C:\Games\WWE-SvR-Native`
    (not inside `Program Files`).
 3. Copy your disc image into the `isos` folder there.
@@ -89,7 +90,8 @@ The Windows release runs on the Deck through Proton, Steam's compatibility layer
 
 **In Desktop Mode** (press the Steam button, *Power*, *Switch to Desktop*):
 
-1. **Get the release.** Download `WWE-SVR2009-Native-<version>.zip` with the browser, or copy it
+1. **Get the release.** Download `WWE-SVR2009-Native-v<version>-Windows-and-SteamDeck.zip`
+   (under *Assets*, not *Source code*) with the browser, or copy it
    over from your PC (USB drive, microSD card or network share).
 2. **Extract it.** In the *Dolphin* file manager, make a folder such as
    `/home/deck/Games/WWE-SvR-Native`, right-click the zip, *Extract*, *Extract archive to...*, and
