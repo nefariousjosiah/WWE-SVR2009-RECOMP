@@ -16,6 +16,7 @@
 
 #include <atomic>
 #include <cstdio>
+#include <cstdlib>
 
 namespace {
 
@@ -248,6 +249,72 @@ void DumpAllThreads() {
   fclose(f);
 }
 
+// Developer profiler: SVR_SAMPLE_STACKS=<ms> records every thread's return addresses at that
+// interval to logs/samples.txt, one line per thread per sample:
+//   <ms since start> <tid> <thread name> module+0xOFF;module+0xOFF;...   (innermost first)
+// tools/native/sample_report.py names the frames and reports where time goes (e.g. loading).
+DWORD WINAPI SamplerThread(LPVOID param) {
+  const DWORD interval = static_cast<DWORD>(reinterpret_cast<uintptr_t>(param));
+  FILE *f = OpenLog("samples.txt");
+  if (!f)
+    return 0;
+  const DWORD self_pid = GetCurrentProcessId();
+  const DWORD self_tid = GetCurrentThreadId();
+  const ULONGLONG start = GetTickCount64();
+  for (;;) {
+    Sleep(interval);
+    const ULONGLONG now = GetTickCount64() - start;
+    HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    if (snap == INVALID_HANDLE_VALUE)
+      continue;
+    THREADENTRY32 te{};
+    te.dwSize = sizeof(te);
+    for (BOOL ok = Thread32First(snap, &te); ok; ok = Thread32Next(snap, &te)) {
+      if (te.th32OwnerProcessID != self_pid || te.th32ThreadID == self_tid)
+        continue;
+      HANDLE h = OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT | THREAD_QUERY_LIMITED_INFORMATION,
+                            FALSE, te.th32ThreadID);
+      if (!h)
+        continue;
+      DWORD64 rips[24];
+      int count = 0;
+      CONTEXT ctx{};
+      ctx.ContextFlags = CONTEXT_FULL;
+      if (SuspendThread(h) != DWORD(-1)) {
+        if (GetThreadContext(h, &ctx))
+          count = WalkStack(ctx, rips, 24);
+        ResumeThread(h);
+      }
+      char name[64] = "-";
+      PWSTR wname = nullptr;
+      if (SUCCEEDED(GetThreadDescription(h, &wname)) && wname) {
+        if (*wname)
+          WideCharToMultiByte(CP_UTF8, 0, wname, -1, name, sizeof(name), nullptr, nullptr);
+        LocalFree(wname);
+      }
+      for (char *c = name; *c; ++c)
+        if (*c == ' ' || *c == '\t')
+          *c = '_';
+      fprintf(f, "%llu %lu %s ", static_cast<unsigned long long>(now), te.th32ThreadID, name);
+      for (int i = 0; i < count; ++i) {
+        char module[MAX_PATH] = "?";
+        HMODULE mod = nullptr;
+        if (GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                                   GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                               reinterpret_cast<LPCSTR>(rips[i]), &mod))
+          GetModuleFileNameA(mod, module, MAX_PATH);
+        const char *base = strrchr(module, '\\');
+        fprintf(f, "%s%s+0x%llX", i ? ";" : "", base ? base + 1 : module,
+                static_cast<unsigned long long>(rips[i] - reinterpret_cast<DWORD64>(mod)));
+      }
+      fputc('\n', f);
+      CloseHandle(h);
+    }
+    CloseHandle(snap);
+    fflush(f);
+  }
+}
+
 std::atomic<ULONGLONG> g_heartbeat_ms{0};  // last presented frame, 0 = none yet
 
 DWORD WINAPI WatchdogThread(LPVOID) {
@@ -279,6 +346,13 @@ struct CrashTraceInstaller {
     if (HANDLE h = CreateThread(nullptr, 0, WatchdogThread, nullptr, 0, nullptr)) {
       SetThreadDescription(h, L"SvR hang watchdog");
       CloseHandle(h);
+    }
+    if (const char *ms = getenv("SVR_SAMPLE_STACKS"); ms && atoi(ms) > 0) {
+      if (HANDLE h = CreateThread(nullptr, 0, SamplerThread,
+                                  reinterpret_cast<LPVOID>(static_cast<uintptr_t>(atoi(ms))), 0, nullptr)) {
+        SetThreadDescription(h, L"SvR stack sampler");
+        CloseHandle(h);
+      }
     }
   }
 } g_installer;

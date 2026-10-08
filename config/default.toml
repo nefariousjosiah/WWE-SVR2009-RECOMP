@@ -28,6 +28,13 @@ name = "SvrFrameSwapHook"
 address = 0x8225BFA8
 registers = []
 
+# Loading: the loader's per-frame time slice (src/loading_hooks.cpp). At the budget compare in
+# sub_82477A18, f13 = budget in ms (match loads set 1 ms); raised to svr_load_slice_ms.
+[[midasm_hook]]
+name = "SvrLoaderBudgetHook"
+address = 0x82477A58
+registers = ["f13"]
+
 [functions]
 # Branch targets analysis left outside any function (codegen UnresolvedCall).
 0x82792108 = {}

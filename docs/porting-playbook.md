@@ -138,6 +138,9 @@ g_ScreenSpace (byte 352) applied before the half-pixel offset.
   16/32 lit/unlit indexed, 64/128 skinned/static): bisect GPU faults and wrong output.
 - `SVR_PRESENT_TARGET=<guest texture va>`: show an intermediate (e.g. the depth copy).
 - `SVR_MIRROR_NO_MIPS=1`: base level only.
+- `SVR_SAMPLE_STACKS=<ms>`: samples every thread's stack to `logs/samples.txt`;
+  `python tools/native/sample_report.py --from MS --to MS` shows where each thread spends its
+  time (found the slow-loading cause below).
 
 ## 8. Packaging and release
 
@@ -177,3 +180,11 @@ g_ScreenSpace (byte 352) applied before the half-pixel offset.
 - **Releases:** one zip per game, `tools/windows/package_release.ps1` (no game files; the disc
   image goes next to the exe). Third-party sources are pinned commits plus `patches/`,
   checked to reproduce the working copies exactly.
+- **Loading times:** match loads took ~56 s (match card to bell) though nothing was waiting on
+  the disc. The loader hands the D3D device back to the main thread for a loading-screen frame
+  whenever its time slice is used up (`sub_82477A18`: ms since the last frame against the budget
+  at graphics object +196). Match loads set that budget to 1 ms, so it worked ~1 ms per 16.7 ms
+  frame. `src/loading_hooks.cpp` raises the budget at the compare (0x82477A58) to
+  `svr_load_slice_ms` (12): ~22 s, loading screen still animated. Also `timeBeginPeriod(1)`
+  (`src/timer_resolution.cpp`): guest sleeps otherwise round up to 15.6 ms. Look for the same
+  budget in 2008 (find the function calling the device lock/unlock pair from the loader).

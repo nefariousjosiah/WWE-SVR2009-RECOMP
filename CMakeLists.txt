@@ -16,6 +16,8 @@ set(SVR2009_SOURCES
     src/fps_hooks.cpp
     src/game_locator.cpp
     src/input_script.cpp
+    src/timer_resolution.cpp
+    src/loading_hooks.cpp
 )
 
 if(WIN32)
@@ -28,6 +30,8 @@ rexglue_setup_target(svr2009 GPU_PLUGINS xenos)
 if(WIN32)
     # Game file picker (src/game_locator.cpp).
     target_link_libraries(svr2009 PRIVATE comdlg32)
+    # 1 ms timer resolution (src/timer_resolution.cpp).
+    target_link_libraries(svr2009 PRIVATE winmm)
 endif()
 
 # Developer call census of the D3D library functions (tools/native/gen_census.py), for native

@@ -28,6 +28,8 @@ graphics go through a native Vulkan renderer, at 60 fps and up to 4K.
 - **A simple launcher:** choose your disc image once (it checks it's the right game and release),
   change settings, press Play. Works with a controller, so it's at home on the Steam Deck.
 - **Steam Deck** through Proton: 720p at 60 fps, the correct 16:9 shape (or stretched to fill).
+- **Faster loading:** matches load in about 20 seconds instead of nearly a minute (the game
+  paced its loading for the console's DVD drive).
 - **Plays straight from your disc image**: nothing is extracted or installed.
 - **Controllers** (Xbox, PlayStation, Switch Pro, the Deck's controls) through SDL; the keyboard
   works as a controller too.
