@@ -12,25 +12,11 @@ graphics go through a native Vulkan renderer, at 60 fps and up to 4K.
 
 ## Showcase
 
-Triple H vs. The Undertaker, recorded on PC. Everything runs at 60 fps, entrances and other
-cutscenes included, at up to 4K. These clips are GIFs, which can't show all of that: they play at
-50 fps (the most a GIF can) with a limited colour palette at 480p, so the game itself looks
-smoother and sharper.
-
-<table>
-  <tr>
-    <td align="center"><img src="docs/showcase/entrance.gif" width="420" alt="Triple H's entrance"><br><b>Entrance</b>: an in-engine cutscene at 60 fps</td>
-    <td align="center"><img src="docs/showcase/pedigree.gif" width="420" alt="Triple H hits the Pedigree on the Undertaker"><br><b>The Pedigree</b>: Triple H's finisher</td>
-  </tr>
-  <tr>
-    <td align="center"><img src="docs/showcase/spinebuster.gif" width="420" alt="Triple H's spinebuster"><br><b>Spinebuster</b></td>
-    <td align="center"><img src="docs/showcase/powerbomb.gif" width="420" alt="Triple H powerbombs the Undertaker"><br><b>Powerbomb</b></td>
-  </tr>
-  <tr>
-    <td align="center"><img src="docs/showcase/top-rope.gif" width="420" alt="Triple H comes off the top rope"><br><b>Off the top rope</b></td>
-    <td align="center"><img src="docs/showcase/victory.gif" width="420" alt="Triple H celebrates the win"><br><b>The win</b>: the victory cutscene</td>
-  </tr>
-</table>
+<p align="center">
+  <img src="docs/showcase/entrance.gif" width="480" alt="Triple H's entrance">
+  <img src="docs/showcase/pedigree.gif" width="480" alt="Triple H hits the Pedigree on the Undertaker">
+  <img src="docs/showcase/powerbomb.gif" width="480" alt="Triple H powerbombs the Undertaker">
+</p>
 
 ## Features
 
