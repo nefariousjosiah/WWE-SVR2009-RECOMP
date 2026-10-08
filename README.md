@@ -16,6 +16,8 @@ graphics go through a native Vulkan renderer, at 60 fps and up to 4K.
   <img src="docs/showcase/entrance.gif" width="480" alt="Triple H's entrance">
   <img src="docs/showcase/pedigree.gif" width="480" alt="Triple H hits the Pedigree on the Undertaker">
   <img src="docs/showcase/spinebuster.gif" width="480" alt="Triple H's spinebuster on the Undertaker">
+  <img src="docs/showcase/backbreaker.gif" width="480" alt="Randy Orton's inverted headlock backbreaker on the Undertaker">
+  <img src="docs/showcase/punt.gif" width="480" alt="Randy Orton punts the Undertaker">
 </p>
 
 ## Features
