@@ -21,6 +21,18 @@ if (Test-Path $Out) { Remove-Item $Out -Recurse -Force }
 & powershell -ExecutionPolicy Bypass -File "$Launcher\tools\package.ps1" -Game "$Id=$Build" -Out $Out
 if ($LASTEXITCODE) { throw "packaging failed" }
 
+# This game's own licences next to the launcher's (BSD / MIT notices travel with the binaries).
+$Lic = "$Out\licenses\$Id"
+New-Item -ItemType Directory -Force $Lic | Out-Null
+$Notices = @{
+  "LICENSE" = "this project (MIT).txt"; "THIRD_PARTY.md" = "THIRD_PARTY.md"
+  "src\reblue\LICENSE.reblue" = "re-Blue renderer (BSD-3-Clause).txt"
+  "third_party\rexglue-sdk\LICENSE" = "ReXGlue SDK (BSD-3-Clause).txt"
+  "third_party\plume\LICENSE" = "plume (MIT).txt"
+  "third_party\reblue_thirdparty\zstd\LICENSE" = "zstd (BSD).txt"
+}
+foreach ($k in $Notices.Keys) { Copy-Item "$Root\$k" "$Lic\$($Notices[$k])" -Force }
+
 $Zip = "$Out.zip"
 if (Test-Path $Zip) { Remove-Item $Zip -Force }
 Compress-Archive -Path "$Out\*" -DestinationPath $Zip
