@@ -47,7 +47,7 @@ log_file = "game.log"
 "@ | Set-Content "$Out\$Id.toml" -Encoding ascii
 
 @"
-$Title - native PC / Steam Deck version
+$Title - native PC version (Windows; Linux and Steam Deck through Proton)
 
 YOU NEED YOUR OWN COPY OF THE GAME. This download contains none of the files from the game disc
 and never downloads any: the game's data (models, textures, sound, video) is read from a disc
@@ -59,14 +59,15 @@ Windows
  3. Press Play.
  (Or put the .iso in this folder: the launcher finds it by itself.)
 
-Steam Deck (start the game itself, not the launcher: the launcher still has bugs on the Deck)
- 1. In Desktop Mode, extract this folder to the Deck (for example /home/deck/Games/$Name)
+Linux / Steam Deck, through Proton (start the game itself, not the launcher: the launcher
+still has bugs under Proton)
+ 1. Extract this folder (on the Deck in Desktop Mode, for example to /home/deck/Games/$Name)
     and copy your .iso into it, next to $Id.exe. The game finds it there by itself.
  2. Steam > Games > Add a Non-Steam Game to My Library > Browse > pick $Id.exe
     (set the file type filter to All files).
  3. The shortcut's Properties > Compatibility > Force the use of a specific Steam Play
     compatibility tool > Proton Experimental.
- 4. Start it from Game Mode. Its settings are in $Id.toml (bd_aspect_ratio = 6 stretches the
+ 4. Start it (on the Deck, from Game Mode). Its settings are in $Id.toml (bd_aspect_ratio = 6 stretches the
     picture to fill the Deck's 16:10 screen).
 
 Settings: the launcher's Settings button (resolution up to 4K, fullscreen or window, 60 or
