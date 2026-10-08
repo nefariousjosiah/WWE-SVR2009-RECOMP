@@ -15,7 +15,7 @@ graphics go through a native Vulkan renderer, at 60 fps and up to 4K.
 <p align="center">
   <img src="docs/showcase/entrance.gif" width="480" alt="Triple H's entrance">
   <img src="docs/showcase/pedigree.gif" width="480" alt="Triple H hits the Pedigree on the Undertaker">
-  <img src="docs/showcase/powerbomb.gif" width="480" alt="Triple H powerbombs the Undertaker">
+  <img src="docs/showcase/spinebuster.gif" width="480" alt="Triple H's spinebuster on the Undertaker">
 </p>
 
 ## Features
