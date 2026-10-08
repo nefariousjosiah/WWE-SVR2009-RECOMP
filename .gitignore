@@ -1,0 +1,21 @@
+# Your game files and everything made from them: never committed.
+/assets/
+/iso/
+*.iso
+*.7z
+/generated/
+/userdata/
+*-game.txt
+
+# Build output and local working folders.
+/out/
+/sdk/
+/dist/
+/logs/
+*.log
+logs_regen_out.txt
+
+# Third-party sources: fetched and patched by tools/windows/setup.ps1.
+/third_party/rexglue-sdk/
+/third_party/plume/
+/third_party/XenosRecomp/

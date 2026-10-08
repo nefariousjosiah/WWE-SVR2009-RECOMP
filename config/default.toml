@@ -1,0 +1,36 @@
+# Codegen fixes for SvR 2009's default.xex (included from svr2009_manifest.toml [entrypoint]).
+
+# D3D Swap (sub_8225B850) just loaded the present interval (device+13596) into r11; logged.
+[[midasm_hook]]
+name = "SvrPresentIntervalHook"
+address = 0x8225B900
+registers = ["r11"]
+after_instruction = true
+
+# Frame-rate mode (src/fps_hooks.cpp): with --svr_60fps the game stays in its 60 fps mode.
+# SetFrameRate(fps): r3 = requested rate; 30/25 become 60/50.
+[[midasm_hook]]
+name = "SvrSetFrameRateHook"
+address = 0x82476F38
+registers = ["r3"]
+
+# "Drop to 30 fps mode": skipped (returns immediately) when the hook returns true.
+[[midasm_hook]]
+name = "SvrSkip30ModeHook"
+address = 0x824771C0
+registers = []
+return_on_true = true
+
+# The game's swap function (sub_8225BD40) about to call VdSwap: once per presented frame.
+# src/fps_hooks.cpp counts frames for the on-screen FPS counter (F2).
+[[midasm_hook]]
+name = "SvrFrameSwapHook"
+address = 0x8225BFA8
+registers = []
+
+[functions]
+# Branch targets analysis left outside any function (codegen UnresolvedCall).
+0x82792108 = {}
+0x82769E30 = {}
+0x827680A8 = {}
+0x8273D87C = {}

@@ -1,0 +1,40 @@
+# SvR 2009 D3D library functions, confirmed by behaviour. Matched from SvR 2008's list
+# (tools/native/match_functions.py), then checked by the device fields each one writes
+# (tools/native/device_offsets.py: 2009's device has 8 extra bytes before the vertex declaration,
+# so its fields from +0x2E2C on sit 8 bytes later than 2008's) and by what calls what.
+# Format follows ReXGlue's [functions] table. src/native/svr_d3d_names.h is the renderer's copy.
+
+[functions]
+# Device / frame
+0x8225C350 = { name = "D3DDevice_Present" }            # calls Scissor, SetRenderTarget, Sync, Swap and Resolve below
+0x8225BD40 = { name = "D3DDevice_Swap" }               # only caller of VdSwap (bl at 0x8225BFA8)
+0x8225B850 = { name = "D3DDevice_SynchronizeToPresentationInterval" }  # reads present interval (device+0x351C; 2008 +0x3504)
+0x8226B978 = { name = "D3DDevice_Resolve" }            # called by Present; shares SetTexture's helper (2009 0x822571A8)
+0x8225AEF0 = { name = "D3DDevice_SetRenderTarget" }    # writes render target shadow device+0x3098 (2008 +0x3090)
+0x8225B238 = { name = "D3DDevice_SetDepthStencilSurface" } # writes device+0x30A8 (2008 +0x30A0)
+0x8225A500 = { name = "D3DDevice_SetScissorRect" }     # writes device+0x3184, clamps to viewport floats at +0x3168
+0x8226EEA8 = { name = "D3DDevice_Clear" }              # 47 instructions, same callees as 2008's
+
+# Draws (2009 links no non-indexed D3DDevice_DrawVertices)
+0x825A3E98 = { name = "D3DDevice_BeginVertices" }      # stream stride +0x30F0, draw counter +0x33C8
+0x825A4330 = { name = "D3DDevice_EndVertices" }        # 3 instructions (2008: 7)
+0x825A4340 = { name = "D3DDevice_DrawIndexedVertices" } # reads the index buffer at device+0x3094
+
+# Resource creation
+0x82257E68 = { name = "Direct3D_CreateDevice" }        # allocates the device: 24064 bytes (2008: 22272)
+0x82260EA8 = { name = "D3DDevice_CreateVertexDeclaration" } # 0.97 match, calls 0x82260DB8 like 2008's 0x82242C28
+0x82261170 = { name = "D3DDevice_CreateVertexShader" } # same callees as 2008's plus the register step 0x82260A90
+0x82261060 = { name = "D3DDevice_CreatePixelShader" }  # same as CreateVertexShader without the register step
+
+# Buffers
+0x82252818 = { name = "D3DVertexBuffer_Unlock" }       # lwz r11,24(r3); li r5,0; rlwinm r4; b 0x82252378 (same 4 instructions as 2008)
+0x82253178 = { name = "D3DIndexBuffer_Unlock" }        # 0.83 match
+
+# State
+0x82255270 = { name = "D3DDevice_SetTexture" }         # reads +0x2EAE/+0x2EC8 (2008 +0x2EA6/+0x2EC0)
+0x82260B88 = { name = "D3DDevice_SetVertexShader" }    # writes device+0x3198 (2008 +0x3190)
+0x82260888 = { name = "D3DDevice_SetPixelShader" }     # writes device+0x3194 (2008 +0x318C)
+0x82260DA0 = { name = "D3DDevice_SetVertexDeclaration" } # stw r4,11820(r3): device+0x2E2C (2008 +0x2E24)
+0x8225A648 = { name = "D3DDevice_SetStreamSource" }    # VB at (3115+stream)*4, stride byte at 12528+stream
+0x8225A768 = { name = "D3DDevice_SetIndices" }         # writes device+0x3094 (2008 +0x308C)
+0x82255148 = { name = "D3DSurface_GetDesc" }           # 1.0 match

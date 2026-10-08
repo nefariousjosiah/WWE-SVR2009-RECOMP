@@ -1,0 +1,7 @@
+* text=auto
+*.png binary
+*.gif binary
+*.ttf binary
+*.patch -text
+*.ps1 text eol=crlf
+*.bat text eol=crlf

@@ -1,0 +1,3 @@
+0x8221019C  # splits a function (branch across it)
+0x8221021C  # splits a function (branch across it)
+0x825CFCF0  # splits a function (branch across it)
