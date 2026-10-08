@@ -215,15 +215,14 @@ Licences of all of these: [THIRD_PARTY.md](THIRD_PARTY.md).
 ## Licence and legal
 
 This project's own code, including the native renderer for SmackDown vs. Raw, was written by
-nefariousjosiah and is licensed under the GNU General Public License v3.0 ([LICENSE](LICENSE)).
-The releases are covered by the same licence, and this repository is their source. It builds on
-re:Blue's renderer core
-(BSD 3-Clause) and the other projects in [THIRD_PARTY.md](THIRD_PARTY.md), which keep their own
-licences; the releases include FFmpeg and libmspack under the LGPL (their source: see
-THIRD_PARTY.md). None of the files from the game
-disc are in this repository or the releases: the game's data (models, textures, sound, video)
-comes from your own disc image. The releases do contain the game's program in recompiled form
-(`svr2009.exe`, with the game's shaders converted for PC).
+nefariousjosiah and is licensed under the GNU General Public License v3.0 ([LICENSE](LICENSE)). The
+releases are covered by the same licence, and this repository is their source. It builds on
+re:Blue's renderer core (BSD 3-Clause) and the other projects in [THIRD_PARTY.md](THIRD_PARTY.md),
+which keep their own licences; the releases include FFmpeg and libmspack under the LGPL (their
+source: see THIRD_PARTY.md). None of the files from the game disc are in this repository or the
+releases: the game's data (models, textures, sound, video) comes from your own disc image. The
+releases do contain the game's program in recompiled form (`svr2009.exe`, with the game's shaders
+converted for PC).
 
 WWE, SmackDown vs. Raw and all related names, characters, content, the box art shown by the
 launcher and the gameplay shown in the showcase clips belong to their respective owners (WWE,
