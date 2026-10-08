@@ -111,5 +111,15 @@ stb_image.h at https://github.com/nothings/stb" | Set-Content "$Out\licenses\stb
 
 $Zip = "$Root\dist\$Name-v$Version-Windows-and-SteamDeck.zip"
 if (Test-Path $Zip) { Remove-Item $Zip -Force }
-Compress-Archive -Path "$Out\*" -DestinationPath $Zip
+# Entry paths need forward slashes: Windows PowerShell's Compress-Archive writes backslashes, which
+# Linux and the Steam Deck read as part of the file name ("fonts\... doesn't exist").
+Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
+$Archive = [IO.Compression.ZipFile]::Open($Zip, [IO.Compression.ZipArchiveMode]::Create)
+try {
+  foreach ($f in Get-ChildItem $Out -Recurse -File) {
+    $Entry = $f.FullName.Substring($Out.Length + 1).Replace("\", "/")
+    [void][IO.Compression.ZipFileExtensions]::CreateEntryFromFile($Archive, $f.FullName, $Entry,
+      [IO.Compression.CompressionLevel]::Optimal)
+  }
+} finally { $Archive.Dispose() }
 Write-Host ("Release: {0} ({1:N0} MB)" -f $Zip, ((Get-Item $Zip).Length / 1MB))
