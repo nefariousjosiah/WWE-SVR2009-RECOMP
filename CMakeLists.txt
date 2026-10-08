@@ -34,10 +34,10 @@ if(WIN32)
     target_link_libraries(svr2009 PRIVATE winmm)
 endif()
 
-# Developer call census of the D3D library functions (tools/native/gen_census.py), for native
+# Developer call census of the D3D library functions, for native
 # renderer reverse engineering. Off by default; never ship a build with it on.
 option(SVR_D3D_CENSUS "Count calls to the game's D3D library functions" OFF)
-# Native renderer (cmake/native_renderer.cmake, docs/native-renderer.md). Its hooks override the
+# Native renderer (cmake/native_renderer.cmake). Its hooks override the
 # same D3D functions the census wraps, so the two are exclusive.
 option(SVR_NATIVE_RENDERER "Draw through plume instead of emulating the Xenos GPU" OFF)
 if(SVR_NATIVE_RENDERER AND SVR_D3D_CENSUS)

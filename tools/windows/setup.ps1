@@ -22,7 +22,6 @@ $ErrorActionPreference = "Stop"
 $Root = (Resolve-Path "$PSScriptRoot\..\..").Path
 Set-Location $Root
 $Id = "svr2009"
-$Year = "2009"
 # Pinned third-party commits (patches\ apply on top of exactly these).
 $SdkCommit = "c94f5eb"     # ReXGlue SDK v0.10.0
 $PlumeCommit = "e0c8871"   # zolaware/plume
@@ -113,7 +112,7 @@ if (-not (Test-Path "$Root\generated\default\sources.cmake")) {
 if (Test-Path "$Root\generated\native\shader_cache.cpp") {
   Step "Building $Id.exe (native renderer)"
   Run powershell @("-ExecutionPolicy", "Bypass", "-File", "$PSScriptRoot\build.ps1")
-  Step "Done. Play with:  Play WWE $Year.bat   (or package a release: tools\windows\package_release.ps1)"
+  Step "Done. Play with:  tools\windows\run.ps1   (or package a release: tools\windows\package_release.ps1)"
 } else {
   Step "Building the shader-dump version (no shader cache yet)"
   $env:SVR_D3D_CENSUS = "ON"

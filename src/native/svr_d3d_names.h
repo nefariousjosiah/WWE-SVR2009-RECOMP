@@ -3,8 +3,7 @@
 // Force-included into the native renderer sources (cmake/native_renderer.cmake), so
 // REX_HOOK(D3DDevice_Clear, ...) overrides SvR's recompiled sub_8226EEA8 and
 // __imp__D3DDevice_Clear calls its original body. Each entry was matched from SvR 2008's map
-// (tools/native/match_functions.py) and confirmed by behaviour: the device fields it writes
-// (tools/native/device_offsets.py) and the functions it calls (Present calls this Scissor,
+// and confirmed by behaviour: the device fields it writes and the functions it calls (Present calls this Scissor,
 // SetRenderTarget, SynchronizeToPresentationInterval, Swap and Resolve). Functions not listed
 // here are either not used by SvR's engine or not identified yet; a hook that names one fails to
 // compile on purpose.

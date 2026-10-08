@@ -214,7 +214,7 @@ static_assert(sizeof(DeviceFetchConstant) == 24);
 // SvR 2009 D3DDevice: 0x5E00 bytes (Direct3D_CreateDevice sub_82257E68 allocates 24064). Its
 // XDK build keeps 2008's layout through the register shadows and state flags (to +0x2AC0), then
 // inserts 8 bytes before the vertex declaration: every field the renderer reads from there on
-// sits 8 bytes later than in SvR 2008 (derived with tools/native/device_offsets.py over the
+// sits 8 bytes later than in SvR 2008 (derived by comparing the
 // matched D3D functions, then confirmed in each function's own stores). Only the fields the
 // native renderer reads or writes are named.
 struct SvrViewport {

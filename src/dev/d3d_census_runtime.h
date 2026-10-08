@@ -1,4 +1,4 @@
-// Runtime for the developer D3D call census (see tools/native/gen_census.py).
+// Runtime for the developer D3D call census (src/dev/d3d_census.cpp).
 
 #pragma once
 

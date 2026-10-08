@@ -153,9 +153,6 @@ Notes for the Deck:
 - **60 fps.** The game has its own 60 fps mode, which it normally drops to 30 for matches; a hook
   keeps it at 60, so the game logic and the animations stay in step.
 
-The details, every pitfall included, are in [docs/porting-playbook.md](docs/porting-playbook.md)
-and [docs/native-renderer.md](docs/native-renderer.md).
-
 ## Building from source
 
 For developers; players use the releases. Windows, with about 30 GB free.
@@ -176,13 +173,13 @@ time, `setup.ps1` builds a shader-dump version and tells you how to collect them
 and a match or two with shader dumping on, run `tools\native\build_shader_cache.ps1`, then run
 `setup.ps1` again.
 
-Afterwards: `tools\windows\build.ps1` rebuilds, `Play WWE 2009.bat` runs it, and
+Afterwards: `tools\windows\build.ps1` rebuilds, `tools\windows\run.ps1` runs it, and
 `tools\windows\package_release.ps1 -Version 1.0` makes the release zip (game, launcher, no game
 files; the launcher is built with `launcher\build.ps1`).
 
 Repository layout: `src/` the game-specific code (`native/` renderer glue, `reblue/` the renderer),
 `launcher/` the launcher, `config/` recompiler configuration, `patches/` changes to the third-party
-sources, `tools/` scripts, `docs/` notes.
+sources, `tools/` build scripts, `docs/` the images on this page.
 
 ## Credits
 

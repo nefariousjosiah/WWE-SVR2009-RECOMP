@@ -85,6 +85,6 @@ function(svr_add_native_renderer target)
     set_source_files_properties(${SVR_NATIVE_SOURCES} PROPERTIES
         COMPILE_OPTIONS "-include;${SVR_NATIVE_ROOT}/src/native/svr_d3d_names.h")
     target_link_libraries(${target} PRIVATE plume svr_native_thirdparty rex::o1heap)
-    # Linker map: names recompiled functions in crash stacks (tools/native/catch_crash.py).
+    # Linker map: names recompiled functions in crash stacks.
     target_link_options(${target} PRIVATE "-Wl,/MAP:${CMAKE_BINARY_DIR}/svr2009.map")
 endfunction()

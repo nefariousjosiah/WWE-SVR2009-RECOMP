@@ -1,6 +1,6 @@
 # Build the native renderer's game shader cache: XenosRecomp over the shaders the game created.
 #  1. Dump the shaders: a -DSVR_D3D_CENSUS=ON build run with SVR_DUMP_SHADERS=logs\shaders,
-#     played through the menus and a match (docs/porting-playbook.md section 5).
+#     played through the menus and a match (tools/windows/setup.ps1 prints the steps).
 #  2. powershell -ExecutionPolicy Bypass -File tools\native\build_shader_cache.ps1
 # Builds the patched XenosRecomp (third_party/XenosRecomp, -DREBLUE_RECOMP) into out\xenosrecomp,
 # converts logs\shaders into generated\native\shader_cache.cpp and leaves the HLSL of every shader

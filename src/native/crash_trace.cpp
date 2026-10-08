@@ -4,8 +4,8 @@
 // access violation it passes on reaches this handler, which walks the host stack and writes each
 // frame as an offset into svr2009.exe to logs/crash_trace.txt. A watchdog thread writes every
 // thread's stack to logs/hang_trace.txt when no frame has been presented for 10 s (the renderer
-// calls SvrWatchdogHeartbeat per frame). tools/native/symbolize_crash.py names the frames from the
-// linker map (out/build/<preset>/svr2009.map).
+// calls SvrWatchdogHeartbeat per frame). The frames can be named from the linker map
+// (out/build/<preset>/svr2009.map).
 
 #if defined(_WIN32)
 
@@ -252,7 +252,7 @@ void DumpAllThreads() {
 // Developer profiler: SVR_SAMPLE_STACKS=<ms> records every thread's return addresses at that
 // interval to logs/samples.txt, one line per thread per sample:
 //   <ms since start> <tid> <thread name> module+0xOFF;module+0xOFF;...   (innermost first)
-// tools/native/sample_report.py names the frames and reports where time goes (e.g. loading).
+// Naming the frames from the linker map shows where each thread spends its time (e.g. loading).
 DWORD WINAPI SamplerThread(LPVOID param) {
   const DWORD interval = static_cast<DWORD>(reinterpret_cast<uintptr_t>(param));
   FILE *f = OpenLog("samples.txt");
