@@ -39,8 +39,8 @@ graphics go through a native Vulkan renderer, at 60 fps and up to 4K.
 - **Faster loading:** matches load in about 20 seconds instead of nearly a minute (the game
   paced its loading for the console's DVD drive).
 - **Plays straight from your disc image**: nothing is extracted or installed.
-- **Controllers** (Xbox, PlayStation, Switch Pro, the Deck's controls) through SDL; the keyboard
-  works as a controller too.
+- **Controllers** (Xbox, PlayStation, Switch Pro, the Deck's controls) through SDL. Keyboard controls
+  are included but not tested yet, so a controller is recommended.
 
 ## What you need
 
@@ -76,8 +76,8 @@ Good to know:
 
 ### Controls
 
-A controller is recommended; plug it in before starting. On the keyboard (rebind with **F4** in
-game):
+**A controller is recommended**; plug it in before starting. Keyboard controls are currently not
+tested yet. Their default layout (rebind with **F4** in game):
 
 | Controller | Keyboard | | Controller | Keyboard |
 |---|---|---|---|---|

@@ -35,7 +35,7 @@ Copy-Item "$Root\launcher\res\cover.jpg" "$Out\cover.jpg"  # the game's box art 
 # $Title settings. Edit with any text editor; command-line arguments override these.
 fullscreen = true
 svr_60fps = true
-# Keyboard works as a controller too (rebind with F4 in game); a real controller is recommended.
+# Keyboard controls are not tested yet; a controller is recommended (rebind keys with F4 in game).
 mnk_mode = true
 # Internal resolution: 0 = auto (1440p on 1080p/1440p screens, 4K on 4K screens, 720p on
 # Steam Deck), 1 = 720p (original), 2 = 1440p, 3 = 4K.
