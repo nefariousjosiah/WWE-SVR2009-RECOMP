@@ -14,6 +14,10 @@ loading.
 > or its downloads, and nothing is ever downloaded for you: the game runs from a disc image
 > (`.iso`) made from your own SvR 2009 disc. It does not condone piracy: please buy the game.
 
+> **The launcher is optional.** Use `Launcher.exe` if you like, or skip it: put your `.iso` in the
+> game's folder and run **`svr2009.exe`**. The game finds the disc image by itself and starts. On Linux
+> and the Steam Deck, running `svr2009.exe` this way is the recommended way to play.
+
 ![The launcher: point it at your disc image and press Play](docs/launcher.png)
 
 ## Showcase
@@ -66,17 +70,15 @@ loading.
    *Assets*; not *Source code*, which is the developer source).
 2. Extract it to a folder of its own, for example `C:\Games\SVR2009-NATIVE`
    (not inside `Program Files`).
-3. Run **`Launcher.exe`** in that folder.
-4. Press **Choose disc image...** and pick your `.iso`, wherever it is. The launcher checks it and
-   remembers it. (Or copy the `.iso` into the folder: the launcher finds it by itself.)
-5. Press **Play**.
-
-**Or start the game directly:** with your `.iso` in the game's folder, run **`svr2009.exe`**. It finds
-the disc image there by itself and starts the game, no launcher needed.
+3. Start the game whichever way you like; both play the same game:
+   - **With the launcher:** run **`Launcher.exe`**, press **Choose disc image...** and pick your
+     `.iso`, wherever it is (the launcher checks it and remembers it), then press **Play**.
+   - **Without the launcher:** copy your `.iso` into the game's folder, next to `svr2009.exe`, and run
+     **`svr2009.exe`**. It finds the disc image by itself and starts the game straight away.
 
 Good to know:
 
-- **Settings** (button in the launcher): resolution (Auto, 720p, 1440p, 4K), fullscreen or window,
+- **Settings** (the launcher's Settings button, or edit `svr2009.toml` in any text editor): resolution (Auto, 720p, 1440p, 4K), fullscreen or window,
   60 or 30 fps, screen shape. They are saved in `svr2009.toml`.
 - **"Windows protected your PC"**: the program isn't code-signed. Click *More info* and then
   *Run anyway*.
