@@ -10,6 +10,7 @@
 #include <rex/rex_app.h>
 #include <rex/runtime.h>
 #include <rex/system/gpu_plugin.h>
+#include <rex/input/input_system.h>
 #include <rex/ui/keybinds.h>
 
 #include <filesystem>
@@ -17,6 +18,7 @@
 
 #include "fps_counter.h"
 #include "game_locator.h"
+#include "settings_menu.h"
 #if defined(SVR_NATIVE_RENDERER)
 #include "gpu/device.h"
 #include "gpu/imgui_overlay_drawer.h"
@@ -28,8 +30,7 @@
 REXCVAR_DECLARE(std::string, gpu_backend);
 REXCVAR_DECLARE(bool, svr_fps_counter);
 
-// Bump the version in parentheses with each milestone build.
-inline constexpr const char* kWindowTitle = "WWE SVR 2009 (native renderer dev)";
+inline constexpr const char* kWindowTitle = "WWE SmackDown vs. Raw 2009";
 
 class Svr2009App : public rex::ReXApp {
  public:
@@ -97,9 +98,20 @@ class Svr2009App : public rex::ReXApp {
     if (window())
       window()->SetTitle(kWindowTitle);
     frame_dumper_.Start(runtime()->graphics_system());
+    // The game gets no input while the settings menu is open (or while the mouse is over an
+    // overlay). Set here: the runtime (and ReXApp's own callback) exists only from now on.
+    if (auto* input = static_cast<rex::input::InputSystem*>(runtime()->input_system())) {
+      input->SetActiveCallback([this] {
+        if (settings_menu_ && settings_menu_->BlocksGameInput())
+          return false;
+        return !(imgui_drawer_ && imgui_drawer_->GetIO().WantCaptureMouse);
+      });
+    }
   }
   void OnShutdown() override {
     rex::ui::UnregisterBind("bind_fps_counter");
+    rex::ui::UnregisterBind("bind_svr_settings");
+    settings_menu_.reset();
     fps_counter_.reset();
     frame_dumper_.Stop();
   }
@@ -118,6 +130,11 @@ class Svr2009App : public rex::ReXApp {
     config.OversampleV = 1;
     config.PixelSnapH = true;
     g_fps_counter_font = atlas->AddFontFromFileTTF(path.string().c_str(), 20.0f, &config);
+    // Roboto for the settings menu (sized per use; ImGui 1.92 scales fonts dynamically).
+    auto menu_font = rex::filesystem::GetExecutableFolder() / "fonts" / "Roboto-Medium.ttf";
+    g_menu_font = std::filesystem::exists(menu_font)
+                      ? atlas->AddFontFromFileTTF(menu_font.string().c_str(), 22.0f)
+                      : nullptr;
   }
 
   // FPS counter in the corner (on by default, F2 toggles), and the same numbers for the F3 overlay.
@@ -130,6 +147,27 @@ class Svr2009App : public rex::ReXApp {
         fps_counter_.reset();
       else if (imgui_drawer_)
         fps_counter_ = std::make_unique<FpsCounterDialog>(imgui_drawer_);
+    });
+    // In-game settings menu: F1, or Back + Start on a controller (settings_menu.h).
+    SettingsMenuDialog::Hooks hooks;
+    hooks.is_fullscreen = [this] { return window() && window()->IsFullscreen(); };
+    hooks.set_fullscreen = [this](bool on) {
+      if (window())
+        window()->SetFullscreen(on);
+    };
+    hooks.fps_counter_on = [this] { return fps_counter_ != nullptr; };
+    hooks.set_fps_counter = [this](bool on) {
+      if (on && !fps_counter_ && imgui_drawer_)
+        fps_counter_ = std::make_unique<FpsCounterDialog>(imgui_drawer_);
+      else if (!on)
+        fps_counter_.reset();
+    };
+    settings_menu_ = std::make_unique<SettingsMenuDialog>(
+        drawer, "WWE SmackDown vs. Raw 2009",
+        rex::filesystem::GetExecutableFolder() / "svr2009.toml", std::move(hooks));
+    rex::ui::RegisterBind("bind_svr_settings", "F1", "Open the settings menu", [this] {
+      if (settings_menu_)
+        settings_menu_->Toggle();
     });
     SetGuestFrameStats([] {
       SvrFrameStats s = GetSvrFrameStats();
@@ -173,4 +211,5 @@ class Svr2009App : public rex::ReXApp {
   FrameDumper frame_dumper_;
   rex::ui::ImGuiDrawer* imgui_drawer_ = nullptr;
   std::unique_ptr<FpsCounterDialog> fps_counter_;
+  std::unique_ptr<SettingsMenuDialog> settings_menu_;
 };

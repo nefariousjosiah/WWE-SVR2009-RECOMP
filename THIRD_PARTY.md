@@ -15,11 +15,7 @@ folder.
 | [XenosRecomp](https://github.com/zolaware/reblue-XenosRecomp) (build tool, shader recompiler) | fetched at `339af41`, plus `patches/xenosrecomp.patch` | MIT |
 | [zstd](https://github.com/facebook/zstd) (decompression, single-file decoder) | `third_party/reblue_thirdparty/zstd` | BSD, `third_party/reblue_thirdparty/zstd/LICENSE` |
 | Press Start 2P font (FPS counter) | `res/fonts` | SIL Open Font License 1.1, `res/fonts/OFL.txt` |
-| [SDL 3](https://github.com/libsdl-org/SDL) (launcher window, controller, file dialogs) | the SDK's copy, `third_party/rexglue-sdk/thirdparty/sdl3`, built by `launcher/CMakeLists.txt` | zlib |
-| [Dear ImGui](https://github.com/ocornut/imgui) 1.92.5 (launcher UI) | `launcher/third_party/imgui` | MIT, `launcher/third_party/imgui/LICENSE.txt` |
-| [stb_image](https://github.com/nothings/stb) 2.29 (launcher box art) | `launcher/third_party/stb` | public domain or MIT (end of `stb_image.h`) |
-| Roboto Medium font (launcher) | `launcher/res/fonts` | Apache 2.0, `launcher/res/fonts/LICENSE-Roboto.txt` |
-| Box art (`launcher/res/cover.jpg`) | shown by the launcher | owned by THQ / WWE; used only to identify the game |
+| Roboto Medium font (settings menu) | `res/fonts` | Apache 2.0, `res/fonts/LICENSE-Roboto.txt` |
 
 ## Built into the game's DLLs
 
@@ -31,7 +27,7 @@ folder.
 | [FFmpeg](https://github.com/wmarti/FFmpeg) (libavcodec, libavutil), commit `0604b464` | the game's audio (XMA) | LGPL 2.1 or later |
 | [libmspack](https://github.com/kyz/libmspack) (LZX decoder), commit `30590772` | unpacking the game's executable | LGPL 2.1 |
 | [SDL 3](https://github.com/libsdl-org/SDL) | window, controllers, audio output | zlib |
-| [Dear ImGui](https://github.com/ocornut/imgui) | on-screen menus | MIT |
+| [Dear ImGui](https://github.com/ocornut/imgui) | on-screen menus (settings, FPS counter) | MIT |
 | [fmt](https://github.com/fmtlib/fmt), [spdlog](https://github.com/gabime/spdlog) | text formatting, logging | MIT |
 | [toml++](https://github.com/marzer/tomlplusplus) | settings files | MIT |
 | [xxHash](https://github.com/Cyan4973/xxHash) | hashing | BSD 2-Clause |

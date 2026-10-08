@@ -1,7 +1,7 @@
 # Build the public release zip: this game's native build, WITHOUT any game files.
 #   powershell -ExecutionPolicy Bypass -File tools\windows\package_release.ps1 [-Version 1.0]
 # Output: dist\v<version>\SVR2009-NATIVE.zip (and the unpacked folder dist\SVR2009-NATIVE-v<version>).
-# Players open Launcher.exe and point it at their own disc image (or put it next to svr2009.exe).
+# Players put their own disc image next to svr2009.exe (or pick it on first start) and run it.
 param([string]$Version = "dev")
 $ErrorActionPreference = "Stop"
 $Root = (Resolve-Path "$PSScriptRoot\..\..").Path
@@ -24,12 +24,6 @@ Copy-Item "$Build\fonts" $Out -Recurse
 foreach ($f in "msvcp140.dll", "msvcp140_atomic_wait.dll", "vcruntime140.dll", "vcruntime140_1.dll") {
   Copy-Item "$env:WINDIR\System32\$f" $Out
 }
-# The launcher: picks the disc image, keeps the settings, starts the game.
-& powershell -ExecutionPolicy Bypass -File "$Root\launcher\build.ps1"
-if ($LASTEXITCODE) { throw "launcher build failed" }
-Copy-Item "$Root\out\launcher\Launcher.exe" $Out
-Copy-Item "$Root\launcher\res\fonts\Roboto-Medium.ttf" "$Out\fonts"
-Copy-Item "$Root\launcher\res\cover.jpg" "$Out\cover.jpg"  # the game's box art (THQ / WWE)
 
 @"
 # $Title settings. Edit with any text editor; command-line arguments override these.
@@ -54,26 +48,23 @@ and never downloads any: the game's data (models, textures, sound, video) is rea
 image (.iso) of your own disc, USA / Europe release. It does not condone piracy.
 
 Windows
- 1. Run Launcher.exe.
- 2. Press "Choose disc image..." and pick your .iso (it is checked and remembered).
- 3. Press Play.
- Or put the .iso in this folder and run $Id.exe directly: the game finds it by itself and
- starts, no launcher needed.
+ 1. Copy your .iso into this folder, next to $Id.exe.
+ 2. Run $Id.exe. The game finds the disc image by itself and starts.
+ (If there's no .iso here, the game asks for one the first time and remembers it.)
 
-Linux / Steam Deck, through Proton (start the game itself, not the launcher: the launcher
-still has bugs under Proton)
+Linux / Steam Deck, through Proton
  1. Extract this folder (on the Deck in Desktop Mode, for example to /home/deck/Games/$Name)
     and copy your .iso into it, next to $Id.exe. The game finds it there by itself.
  2. Steam > Games > Add a Non-Steam Game to My Library > Browse > pick $Id.exe
     (set the file type filter to All files).
  3. The shortcut's Properties > Compatibility > Force the use of a specific Steam Play
     compatibility tool > Proton Experimental.
- 4. Start it (on the Deck, from Game Mode). Its settings are in $Id.toml (bd_aspect_ratio = 6 stretches the
-    picture to fill the Deck's 16:10 screen).
+ 4. Start it (on the Deck, from Game Mode). View + Menu together opens the settings menu.
+    Optional: bind the L4 back button to F1 in the game's Steam controller layout.
 
-Settings: the launcher's Settings button (resolution up to 4K, fullscreen or window, 60 or
-30 fps, screen shape), saved in $Id.toml. Box art: cover.jpg (drop another image on the
-launcher to change it).
+Settings: press F1 in game (or Back + Start on a controller) for the settings menu: resolution
+up to 4K, fullscreen or window, 60 or 30 fps, screen shape, FPS counter, sound, keyboard
+controls. Saved in $Id.toml.
 Saves: the userdata folder (created on first start). If something goes wrong, send game.log.
 
 Licence: this program is free software under the GNU General Public License v3.0
@@ -90,8 +81,8 @@ $Notices = @{
   "third_party\reblue_thirdparty\zstd\LICENSE" = "zstd (BSD).txt"
   "res\fonts\OFL.txt" = "Press Start 2P font (OFL).txt"
   "third_party\rexglue-sdk\thirdparty\sdl3\LICENSE.txt" = "SDL3 (zlib).txt"
-  "launcher\third_party\imgui\LICENSE.txt" = "Dear ImGui (MIT).txt"
-  "launcher\res\fonts\LICENSE-Roboto.txt" = "Roboto font (Apache-2.0).txt"
+  "third_party\rexglue-sdk\thirdparty\imgui\LICENSE.txt" = "Dear ImGui (MIT).txt"
+  "res\fonts\LICENSE-Roboto.txt" = "Roboto font (Apache-2.0).txt"
   # Libraries inside rexruntime.dll / rexgpu-xenos.dll (THIRD_PARTY.md, "Built into the game's DLLs").
   "third_party\rexglue-sdk\thirdparty\FFmpeg\COPYING.LGPLv2.1" = "FFmpeg (LGPL-2.1).txt"
   "third_party\rexglue-sdk\thirdparty\libmspack\libmspack\COPYING.LIB" = "libmspack (LGPL-2.1).txt"
@@ -111,8 +102,6 @@ $Notices = @{
   "third_party\licenses\renderdoc_app-LICENSE.txt" = "RenderDoc API header (MIT).txt"
 }
 foreach ($k in $Notices.Keys) { Copy-Item "$Root\$k" "$Out\licenses\$($Notices[$k])" }
-"stb_image (Sean Barrett): public domain, or MIT License at your choice; see the end of
-stb_image.h at https://github.com/nothings/stb" | Set-Content "$Out\licenses\stb_image.txt" -Encoding ascii
 
 $Zip = "$Root\dist\v$Version\$Name.zip"
 New-Item -ItemType Directory -Force (Split-Path $Zip) | Out-Null

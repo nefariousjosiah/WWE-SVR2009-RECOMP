@@ -14,11 +14,11 @@ loading.
 > or its downloads, and nothing is ever downloaded for you: the game runs from a disc image
 > (`.iso`) made from your own SvR 2009 disc. It does not condone piracy: please buy the game.
 
-> **The launcher is optional.** Use `Launcher.exe` if you like, or skip it: put your `.iso` in the
-> game's folder and run **`svr2009.exe`**. The game finds the disc image by itself and starts. On Linux
-> and the Steam Deck, running `svr2009.exe` this way is the recommended way to play.
+> **No installer, no launcher.** Put your `.iso` in the game's folder and run **`svr2009.exe`**. In
+> game, **F1** (or **Back + Start** on a controller, **View + Menu** on the Steam Deck) opens the
+> settings menu.
 
-![The launcher: point it at your disc image and press Play](docs/launcher.png)
+![The in-game settings menu (F1, or Back + Start on a controller)](docs/settings-menu.png)
 
 ## Showcase
 
@@ -41,9 +41,9 @@ loading.
 - **Up to 4K.** Internal resolution follows your screen: 1440p on 1080p and 1440p monitors, 4K on
   4K monitors, 720p on the Steam Deck. Or pick 720p / 1440p / 4K yourself. 16x anisotropic
   filtering.
-- **A simple launcher:** choose your disc image once (it checks it's the right game and release),
-  change settings, press Play. Works with a controller too. (On Linux and the Steam Deck, start
-  the game directly for now: see below.)
+- **In-game settings menu:** F1, or Back + Start on a controller: resolution, fullscreen or
+  window, 60 or 30 fps, screen shape, FPS counter, sound and keyboard controls. Saved for next
+  time.
 - **Linux and Steam Deck** through Proton, Steam's compatibility layer: put your disc image in the
   game's folder and run the game. On the Deck: 720p at 60 fps, the correct 16:9 shape (or
   stretched to fill).
@@ -56,8 +56,8 @@ loading.
 ## What you need
 
 - **Your own SvR 2009 disc image**, USA / Europe release (one release for both regions: title ID
-  `54510826`, media ID `7AFA4596`, about 7.3 GB). The launcher tells you if yours is a different
-  release; those aren't supported yet.
+  `54510826`, media ID `7AFA4596`, about 7.3 GB). Other releases aren't supported
+  yet.
 - **Windows 10 or 11, 64-bit**, and a graphics card with **Vulkan** support (AMD, NVIDIA or Intel,
   with a recent driver). Or **Linux** with Steam (Proton) and Vulkan drivers, such as a
   **Steam Deck**.
@@ -70,22 +70,20 @@ loading.
    *Assets*; not *Source code*, which is the developer source).
 2. Extract it to a folder of its own, for example `C:\Games\SVR2009-NATIVE`
    (not inside `Program Files`).
-3. Start the game whichever way you like; both play the same game:
-   - **With the launcher:** run **`Launcher.exe`**, press **Choose disc image...** and pick your
-     `.iso`, wherever it is (the launcher checks it and remembers it), then press **Play**.
-   - **Without the launcher:** copy your `.iso` into the game's folder, next to `svr2009.exe`, and run
-     **`svr2009.exe`**. It finds the disc image by itself and starts the game straight away.
+3. Copy your `.iso` into that folder, next to `svr2009.exe`.
+4. Run **`svr2009.exe`**. The game finds the disc image by itself and starts.
 
 Good to know:
 
-- **Settings** (the launcher's Settings button, or edit `svr2009.toml` in any text editor): resolution (Auto, 720p, 1440p, 4K), fullscreen or window,
-  60 or 30 fps, screen shape. They are saved in `svr2009.toml`.
+- **Settings:** press **F1** in game (or **Back + Start** on a controller) for the settings menu:
+  resolution (Auto, 720p, 1440p, 4K), fullscreen or window, 60 or 30 fps, screen shape, FPS
+  counter, sound and keyboard controls. They are saved in `svr2009.toml`.
 - **"Windows protected your PC"**: the program isn't code-signed. Click *More info* and then
   *Run anyway*.
-- **Quitting:** close the game window (Alt+F4 or the close button); the launcher comes back.
+- **Quitting:** close the game window (Alt+F4 or the close button).
 - **Saves** live in the `userdata` folder. Back it up to keep your career and created superstars.
-- **Box art:** the launcher shows the game's cover; drop another image onto it to change it.
-- `svr2009.exe` also uses the disc image the launcher remembered, wherever it is.
+- **Disc image somewhere else?** If there's no `.iso` in the folder, the game asks for one the
+  first time and remembers it.
 
 ### Controls
 
@@ -101,15 +99,14 @@ tested yet. Their default layout (rebind with **F4** in game):
 | Start | Enter / X | | LT / RT | Q / E |
 | Back | Tab / Z | | Stick presses | F / K |
 
-**F2** shows or hides the FPS counter.
+**F1** (or **Back + Start**) opens the settings menu; **F2** shows or hides the FPS counter.
 
 ## Linux and Steam Deck (Proton): install and play
 
 On Linux the Windows release runs through Proton, Steam's compatibility layer; there's no separate
 Linux build. The Steam Deck is the tested setup and holds 60 fps; other Linux PCs with Steam and
-up-to-date Vulkan drivers should work the same way. Start the game itself (`svr2009.exe`) rather than the
-launcher, which still has bugs under Proton: with your disc image in the same folder, the game
-finds it by itself.
+up-to-date Vulkan drivers should work the same way. With your disc image in the same folder as `svr2009.exe`, the
+game finds it by itself.
 
 The steps below are for the Steam Deck. On another Linux PC, do the same in Steam's desktop
 client and skip the Desktop Mode and Game Mode parts.
@@ -140,28 +137,23 @@ client and skip the Desktop Mode and Game Mode parts.
 Notes for the Deck:
 
 - **The first start** takes a little longer while Proton sets itself up.
-- **Settings** are in `svr2009.toml` in the game's folder; open it with the *Kate* text editor in
-  Desktop Mode. The defaults suit the Deck.
+- **Settings:** press **View + Menu** together (the two buttons left and right of the screen) to
+  open the settings menu. To open it with the top-left back button instead: the game's
+  *Controller settings* > *Edit Layout* > *Back Grip Buttons* > **L4** > *Keyboard* > **F1**.
 - **Black bars:** the game is 16:9 and the Deck's screen is 16:10, so there are thin bars above
-  and below. To stretch the picture to fill the screen, change `bd_aspect_ratio = 5` to
-  `bd_aspect_ratio = 6` in `svr2009.toml`.
+  and below. *Screen shape* > *Stretch to fill* in the settings menu fills the screen.
 - **Controls:** the Deck's built-in controls work as an Xbox controller with Steam's default
   layout.
 - **Artwork:** Steam's library artwork for the shortcut can be set from its properties.
 
 ## Troubleshooting
 
-| What the launcher says | What to do |
-|---|---|
-| *Choose your disc image* | It hasn't found one yet: press **Choose disc image...**, or copy your `.iso` into the game's folder and press **Look again**. |
-| *Different disc release* | Your disc image is another release of the game; only the USA / Europe release is supported so far. |
-| *That's a different game* | The file is a disc image of another game: choose your SvR 2009 one. |
-| *That file can't be used* | It isn't a complete Xbox 360 disc image (it should be about 7.3 GB). |
-
 | What happens | What to do |
 |---|---|
+| A window asks for a disc image | There's no `.iso` next to `svr2009.exe`: pick your disc image (it's remembered), or copy it into the game's folder. |
+| The game closes right after starting | Check that your disc image is the USA / Europe release of SvR 2009 and complete. |
 | Black screen, or the game closes | Update your graphics driver (the renderer needs Vulkan), then try again. If it keeps happening, open an issue with `game.log` from the game's folder. |
-| It runs slowly | *Settings* > *Resolution* > **720p** or **1440p**: lower resolutions need less from the graphics card. |
+| It runs slowly | **F1** > *Resolution* > **720p** or **1440p** (applies on the next start): lower resolutions need less from the graphics card. |
 | Windows blocks it | *More info* > *Run anyway* (the program isn't code-signed). |
 
 ## How it works
@@ -198,11 +190,11 @@ and a match or two with shader dumping on, run `tools\native\build_shader_cache.
 `setup.ps1` again.
 
 Afterwards: `tools\windows\build.ps1` rebuilds, `tools\windows\run.ps1` runs it, and
-`tools\windows\package_release.ps1 -Version 1.0` makes the release zip (game, launcher, no game
-files; the launcher is built with `launcher\build.ps1`).
+`tools\windows\package_release.ps1 -Version 1.0` makes the release zip (the game, no game
+files).
 
 Repository layout: `src/` the game-specific code (`native/` renderer glue, `reblue/` the renderer),
-`launcher/` the launcher, `config/` recompiler configuration, `patches/` changes to the third-party
+`config/` recompiler configuration, `patches/` changes to the third-party
 sources, `tools/` build scripts, `docs/` the images on this page.
 
 ## Credits
@@ -212,8 +204,8 @@ sources, `tools/` build scripts, `docs/` the images on this page.
 - [re:Blue](https://github.com/zolaware/reblue) (Blue Dragon), the renderer this one is adapted
   from, with [plume](https://github.com/zolaware/plume) and
   [XenosRecomp](https://github.com/zolaware/reblue-XenosRecomp).
-- The launcher: [SDL](https://libsdl.org), [Dear ImGui](https://github.com/ocornut/imgui),
-  [stb_image](https://github.com/nothings/stb), the Roboto font.
+- The settings menu: [Dear ImGui](https://github.com/ocornut/imgui) and the Roboto font;
+  [SDL](https://libsdl.org) for controllers and sound.
 - [zstd](https://github.com/facebook/zstd); the Press Start 2P font.
 - Inside the runtime: [FFmpeg](https://ffmpeg.org) (audio),
   [libmspack](https://github.com/kyz/libmspack) and the other libraries the ReXGlue SDK uses.
@@ -232,8 +224,7 @@ releases: the game's data (models, textures, sound, video) comes from your own d
 releases do contain the game's program in recompiled form (`svr2009.exe`, with the game's shaders
 converted for PC).
 
-WWE, SmackDown vs. Raw and all related names, characters, content, the box art shown by the
-launcher and the gameplay shown in the showcase clips belong to their respective owners (WWE,
-THQ, Yuke's); the box art is used only to identify the game, the clips only to show the port
-running. This is an unofficial fan project, not affiliated with or endorsed by them or by
+WWE, SmackDown vs. Raw and all related names, characters, content and the gameplay shown in the
+showcase clips belong to their respective owners (WWE, THQ, Yuke's); the clips are used only to show
+the port running. This is an unofficial fan project, not affiliated with or endorsed by them or by
 Microsoft.
