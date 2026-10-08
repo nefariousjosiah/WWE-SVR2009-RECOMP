@@ -1,13 +1,13 @@
 # Build the public release zip: this game's native build, WITHOUT any game files.
 #   powershell -ExecutionPolicy Bypass -File tools\windows\package_release.ps1 [-Version 1.0]
-# Output: dist\WWE-SVR2009-RECOMP-v<version>-Windows-and-SteamDeck.zip (and the unpacked folder).
+# Output: dist\v<version>\SVR2009-NATIVE.zip (and the unpacked folder dist\SVR2009-NATIVE-v<version>).
 # Players open Launcher.exe and point it at their own disc image (or put it next to svr2009.exe).
 param([string]$Version = "dev")
 $ErrorActionPreference = "Stop"
 $Root = (Resolve-Path "$PSScriptRoot\..\..").Path
 $Id = "svr2009"
 $Title = "WWE SmackDown vs. Raw 2009"
-$Name = "WWE-SVR2009-RECOMP"
+$Name = "SVR2009-NATIVE"
 $Build = "$Root\out\build\win-amd64-release"
 if (-not (Test-Path "$Build\$Id.exe")) { throw "Build the game first: tools\windows\build.ps1" }
 # A CMake cache reset once silently rebuilt with the emulated GPU: only the native build ships.
@@ -109,7 +109,8 @@ foreach ($k in $Notices.Keys) { Copy-Item "$Root\$k" "$Out\licenses\$($Notices[$
 "stb_image (Sean Barrett): public domain, or MIT License at your choice; see the end of
 stb_image.h at https://github.com/nothings/stb" | Set-Content "$Out\licenses\stb_image.txt" -Encoding ascii
 
-$Zip = "$Root\dist\$Name-v$Version-Windows-and-SteamDeck.zip"
+$Zip = "$Root\dist\v$Version\$Name.zip"
+New-Item -ItemType Directory -Force (Split-Path $Zip) | Out-Null
 if (Test-Path $Zip) { Remove-Item $Zip -Force }
 # Entry paths need forward slashes: Windows PowerShell's Compress-Archive writes backslashes, which
 # Linux and the Steam Deck read as part of the file name ("fonts\... doesn't exist").
