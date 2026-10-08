@@ -32,8 +32,10 @@ graphics go through a native Vulkan renderer, at 60 fps and up to 4K.
   4K monitors, 720p on the Steam Deck. Or pick 720p / 1440p / 4K yourself. 16x anisotropic
   filtering.
 - **A simple launcher:** choose your disc image once (it checks it's the right game and release),
-  change settings, press Play. Works with a controller, so it's at home on the Steam Deck.
-- **Steam Deck** through Proton: 720p at 60 fps, the correct 16:9 shape (or stretched to fill).
+  change settings, press Play. Works with a controller too. (On the Steam Deck, start the game
+  directly for now: see below.)
+- **Steam Deck** through Proton: put your disc image in the game's folder and run the game; 720p at
+  60 fps, the correct 16:9 shape (or stretched to fill).
 - **Faster loading:** matches load in about 20 seconds instead of nearly a minute (the game
   paced its loading for the console's DVD drive).
 - **Plays straight from your disc image**: nothing is extracted or installed.
@@ -51,10 +53,10 @@ graphics go through a native Vulkan renderer, at 60 fps and up to 4K.
 
 ## Windows: install and play
 
-1. Download `WWE-SVR2009-Native-v<version>-Windows-and-SteamDeck.zip` from the
-   [Releases](https://github.com/nefariousjosiah/WWE-SVR2009-Native/releases) page (under
+1. Download `WWE-SVR2009-RECOMP-v<version>-Windows-and-SteamDeck.zip` from the
+   [Releases](https://github.com/nefariousjosiah/WWE-SVR2009-RECOMP/releases) page (under
    *Assets*; not *Source code*, which is the developer source).
-2. Extract it to a folder of its own, for example `C:\Games\WWE-SVR2009-Native`
+2. Extract it to a folder of its own, for example `C:\Games\WWE-SVR2009-RECOMP`
    (not inside `Program Files`).
 3. Run **`Launcher.exe`** in that folder.
 4. Press **Choose disc image...** and pick your `.iso`, wherever it is. The launcher checks it and
@@ -91,36 +93,40 @@ game):
 ## Steam Deck: install and play
 
 The Windows release runs on the Deck through Proton, Steam's compatibility layer. It holds 60 fps.
+On the Deck, start the game itself (`svr2009.exe`) rather than the launcher, which still has bugs
+there: with your disc image in the same folder, the game finds it by itself.
 
 **In Desktop Mode** (press the Steam button, *Power*, *Switch to Desktop*):
 
-1. **Get the release.** Download `WWE-SVR2009-Native-v<version>-Windows-and-SteamDeck.zip`
+1. **Get the release.** Download `WWE-SVR2009-RECOMP-v<version>-Windows-and-SteamDeck.zip`
    (under *Assets*, not *Source code*) with a browser, or copy it from your PC together with your
    disc image. A USB stick for the copy must be **exFAT or NTFS**: the disc image is bigger than
    FAT32's 4 GB file limit.
 2. **Extract it.** In the *Dolphin* file manager, make a folder such as
-   `/home/deck/Games/WWE-SVR2009-Native`, right-click the zip, *Extract*, *Extract archive to...*,
+   `/home/deck/Games/WWE-SVR2009-RECOMP`, right-click the zip, *Extract*, *Extract archive to...*,
    and choose that folder. (A microSD card works too.)
-3. **Add your disc image.** Copy your `.iso` into that folder. The launcher finds it there.
+3. **Add your disc image.** Copy your `.iso` into that folder, next to `svr2009.exe`.
 4. **Add it to Steam.** Open Steam (desktop), then *Games* > *Add a Non-Steam Game to My
-   Library...* > *Browse...*. Set the file type filter to *All files*, pick `Launcher.exe` in your
+   Library...* > *Browse...*. Set the file type filter to *All files*, pick `svr2009.exe` in your
    folder, then *Add Selected Programs*.
-5. **Turn on Proton.** In your library, right-click *Launcher* > *Properties...* >
+5. **Turn on Proton.** In your library, right-click *svr2009* > *Properties...* >
    *Compatibility*, tick *Force the use of a specific Steam Play compatibility tool* and choose
    **Proton Experimental** (or the newest Proton). While you are there, rename the shortcut to
    *WWE SmackDown vs. Raw 2009*.
 
 **Back in Game Mode** (the *Return to Gaming Mode* icon on the desktop):
 
-6. Start it from *Library* > *Non-Steam*. The launcher opens fullscreen and says *Ready to play*:
-   press **A** on **Play**. Quitting the game brings you back to the launcher.
+6. Start it from *Library* > *Non-Steam*. The game starts fullscreen at 720p and 60 fps. To quit,
+   press the Steam button and *Exit game*.
 
 Notes for the Deck:
 
 - **The first start** takes a little longer while Proton sets itself up.
+- **Settings** are in `svr2009.toml` in the game's folder; open it with the *Kate* text editor in
+  Desktop Mode. The defaults suit the Deck.
 - **Black bars:** the game is 16:9 and the Deck's screen is 16:10, so there are thin bars above
-  and below. *Settings* > *Screen shape* > *Stretch to fill* removes them (the picture gets a
-  little taller).
+  and below. To stretch the picture to fill the screen, change `bd_aspect_ratio = 5` to
+  `bd_aspect_ratio = 6` in `svr2009.toml`.
 - **Controls:** the Deck's built-in controls work as an Xbox controller with Steam's default
   layout.
 - **Artwork:** Steam's library artwork for the shortcut can be set from its properties.
@@ -158,8 +164,8 @@ Notes for the Deck:
 For developers; players use the releases. Windows, with about 30 GB free.
 
 ```
-git clone https://github.com/nefariousjosiah/WWE-SVR2009-Native.git
-cd WWE-SVR2009-Native
+git clone https://github.com/nefariousjosiah/WWE-SVR2009-RECOMP.git
+cd WWE-SVR2009-RECOMP
 powershell -ExecutionPolicy Bypass -File tools\windows\setup.ps1 -Iso "D:\path\to\your disc image.iso"
 ```
 
@@ -191,12 +197,18 @@ sources, `tools/` build scripts, `docs/` the images on this page.
 - The launcher: [SDL](https://libsdl.org), [Dear ImGui](https://github.com/ocornut/imgui),
   [stb_image](https://github.com/nothings/stb), the Roboto font.
 - [zstd](https://github.com/facebook/zstd); the Press Start 2P font.
+- Inside the runtime: [FFmpeg](https://ffmpeg.org) (audio),
+  [libmspack](https://github.com/kyz/libmspack) and the other libraries the ReXGlue SDK uses.
 
 Licences of all of these: [THIRD_PARTY.md](THIRD_PARTY.md).
 
 ## Licence and legal
 
-This project's own code is MIT licensed ([LICENSE](LICENSE)). None of the files from the game
+This project's own code, including the native renderer for SmackDown vs. Raw, was written by
+nefariousjosiah and is MIT licensed ([LICENSE](LICENSE)). It builds on re:Blue's renderer core
+(BSD 3-Clause) and the other projects in [THIRD_PARTY.md](THIRD_PARTY.md), which keep their own
+licences; the releases include FFmpeg and libmspack under the LGPL (their source: see
+THIRD_PARTY.md). None of the files from the game
 disc are in this repository or the releases: the game's data (models, textures, sound, video)
 comes from your own disc image. The releases do contain the game's program in recompiled form
 (`svr2009.exe`, with the game's shaders converted for PC).

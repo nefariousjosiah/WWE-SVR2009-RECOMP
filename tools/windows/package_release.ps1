@@ -1,13 +1,13 @@
 # Build the public release zip: this game's native build, WITHOUT any game files.
 #   powershell -ExecutionPolicy Bypass -File tools\windows\package_release.ps1 [-Version 1.0]
-# Output: dist\WWE-SVR2009-Native-v<version>-Windows-and-SteamDeck.zip (and the unpacked folder).
+# Output: dist\WWE-SVR2009-RECOMP-v<version>-Windows-and-SteamDeck.zip (and the unpacked folder).
 # Players open Launcher.exe and point it at their own disc image (or put it next to svr2009.exe).
 param([string]$Version = "dev")
 $ErrorActionPreference = "Stop"
 $Root = (Resolve-Path "$PSScriptRoot\..\..").Path
 $Id = "svr2009"
 $Title = "WWE SmackDown vs. Raw 2009"
-$Name = "WWE-SVR2009-Native"
+$Name = "WWE-SVR2009-RECOMP"
 $Build = "$Root\out\build\win-amd64-release"
 if (-not (Test-Path "$Build\$Id.exe")) { throw "Build the game first: tools\windows\build.ps1" }
 # A CMake cache reset once silently rebuilt with the emulated GPU: only the native build ships.
@@ -59,14 +59,15 @@ Windows
  3. Press Play.
  (Or put the .iso in this folder: the launcher finds it by itself.)
 
-Steam Deck
+Steam Deck (start the game itself, not the launcher: the launcher still has bugs on the Deck)
  1. In Desktop Mode, extract this folder to the Deck (for example /home/deck/Games/$Name)
-    and copy your .iso into it.
- 2. Steam > Games > Add a Non-Steam Game to My Library > Browse > pick Launcher.exe
+    and copy your .iso into it, next to $Id.exe. The game finds it there by itself.
+ 2. Steam > Games > Add a Non-Steam Game to My Library > Browse > pick $Id.exe
     (set the file type filter to All files).
  3. The shortcut's Properties > Compatibility > Force the use of a specific Steam Play
     compatibility tool > Proton Experimental.
- 4. Start it from Game Mode and press A on Play.
+ 4. Start it from Game Mode. Its settings are in $Id.toml (bd_aspect_ratio = 6 stretches the
+    picture to fill the Deck's 16:10 screen).
 
 Settings: the launcher's Settings button (resolution up to 4K, fullscreen or window, 60 or
 30 fps, screen shape), saved in $Id.toml. Box art: cover.jpg (drop another image on the
@@ -85,6 +86,23 @@ $Notices = @{
   "third_party\rexglue-sdk\thirdparty\sdl3\LICENSE.txt" = "SDL3 (zlib).txt"
   "launcher\third_party\imgui\LICENSE.txt" = "Dear ImGui (MIT).txt"
   "launcher\res\fonts\LICENSE-Roboto.txt" = "Roboto font (Apache-2.0).txt"
+  # Libraries inside rexruntime.dll / rexgpu-xenos.dll (THIRD_PARTY.md, "Built into the game's DLLs").
+  "third_party\rexglue-sdk\thirdparty\FFmpeg\COPYING.LGPLv2.1" = "FFmpeg (LGPL-2.1).txt"
+  "third_party\rexglue-sdk\thirdparty\libmspack\libmspack\COPYING.LIB" = "libmspack (LGPL-2.1).txt"
+  "third_party\rexglue-sdk\thirdparty\fmt\LICENSE" = "fmt (MIT).txt"
+  "third_party\rexglue-sdk\thirdparty\spdlog\LICENSE" = "spdlog (MIT).txt"
+  "third_party\rexglue-sdk\thirdparty\tomlplusplus\LICENSE" = "toml++ (MIT).txt"
+  "third_party\rexglue-sdk\thirdparty\xxHash\LICENSE" = "xxHash (BSD-2-Clause).txt"
+  "third_party\rexglue-sdk\thirdparty\utfcpp\LICENSE" = "utf8-cpp (BSL-1.0).txt"
+  "third_party\licenses\disruptorplus-LICENSE.txt" = "disruptorplus (MIT).txt"
+  "third_party\rexglue-sdk\thirdparty\o1heap\LICENSE" = "o1heap (MIT).txt"
+  "third_party\rexglue-sdk\thirdparty\aes_128\LICENSE" = "aes_128 (MIT).txt"
+  "third_party\rexglue-sdk\thirdparty\simde\COPYING" = "SIMDe (MIT).txt"
+  "third_party\rexglue-sdk\thirdparty\glslang\LICENSE.txt" = "glslang.txt"
+  "third_party\rexglue-sdk\thirdparty\vulkan-memory-allocator\LICENSE.txt" = "Vulkan Memory Allocator (MIT).txt"
+  "third_party\rexglue-sdk\thirdparty\vulkan-headers\LICENSE.md" = "Vulkan headers.txt"
+  "third_party\rexglue-sdk\thirdparty\spirv-headers\LICENSE" = "SPIR-V headers.txt"
+  "third_party\licenses\renderdoc_app-LICENSE.txt" = "RenderDoc API header (MIT).txt"
 }
 foreach ($k in $Notices.Keys) { Copy-Item "$Root\$k" "$Out\licenses\$($Notices[$k])" }
 "stb_image (Sean Barrett): public domain, or MIT License at your choice; see the end of
