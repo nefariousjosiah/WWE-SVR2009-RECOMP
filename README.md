@@ -12,7 +12,25 @@ graphics go through a native Vulkan renderer, at 60 fps and up to 4K.
 
 ## Showcase
 
-*Gameplay clips are on the way.*
+Triple H vs. The Undertaker, recorded on PC. Everything runs at 60 fps, entrances and other
+cutscenes included, at up to 4K. These clips are GIFs, which can't show all of that: they play at
+50 fps (the most a GIF can) with a limited colour palette at 480p, so the game itself looks
+smoother and sharper.
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/showcase/entrance.gif" width="420" alt="Triple H's entrance"><br><b>Entrance</b>: an in-engine cutscene at 60 fps</td>
+    <td align="center"><img src="docs/showcase/pedigree.gif" width="420" alt="Triple H hits the Pedigree on the Undertaker"><br><b>The Pedigree</b>: Triple H's finisher</td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/showcase/spinebuster.gif" width="420" alt="Triple H's spinebuster"><br><b>Spinebuster</b></td>
+    <td align="center"><img src="docs/showcase/powerbomb.gif" width="420" alt="Triple H powerbombs the Undertaker"><br><b>Powerbomb</b></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/showcase/top-rope.gif" width="420" alt="Triple H comes off the top rope"><br><b>Off the top rope</b></td>
+    <td align="center"><img src="docs/showcase/victory.gif" width="420" alt="Triple H celebrates the win"><br><b>The win</b>: the victory cutscene</td>
+  </tr>
+</table>
 
 ## Features
 
@@ -198,7 +216,8 @@ disc are in this repository or the releases: the game's data (models, textures, 
 comes from your own disc image. The releases do contain the game's program in recompiled form
 (`svr2009.exe`, with the game's shaders converted for PC).
 
-WWE, SmackDown vs. Raw and all related names, characters, content and the box art shown by the
-launcher belong to their respective owners (WWE, THQ, Yuke's); the box art is used only to
-identify the game. This is an unofficial fan project, not affiliated with or endorsed by them or by
+WWE, SmackDown vs. Raw and all related names, characters, content, the box art shown by the
+launcher and the gameplay shown in the showcase clips belong to their respective owners (WWE,
+THQ, Yuke's); the box art is used only to identify the game, the clips only to show the port
+running. This is an unofficial fan project, not affiliated with or endorsed by them or by
 Microsoft.
