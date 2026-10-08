@@ -1,12 +1,6 @@
 MIT License
 
-Copyright (c) 2026 nefariousjosiah
-
-nefariousjosiah wrote this project, including its native renderer for WWE SmackDown vs. Raw: the
-renderer integration in src/native/, its build setup in cmake/native_renderer.cmake, every change
-made to the re:Blue renderer code in src/reblue/ and the patches in patches/. Code that comes from
-other projects keeps its own licence and copyright: the re:Blue renderer core in src/reblue/ is
-BSD 3-Clause (src/reblue/LICENSE.reblue and each file's header); see THIRD_PARTY.md for the rest.
+Copyright (c) 2026 nefariousjosiah, who wrote this project, including its native renderer for WWE SmackDown vs. Raw (src/native/, cmake/native_renderer.cmake, every change to the re:Blue renderer code in src/reblue/ and the patches in patches/). Code from other projects keeps its own licence: see THIRD_PARTY.md.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
