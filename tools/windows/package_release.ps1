@@ -75,11 +75,15 @@ Settings: the launcher's Settings button (resolution up to 4K, fullscreen or win
 30 fps, screen shape), saved in $Id.toml. Box art: cover.jpg (drop another image on the
 launcher to change it).
 Saves: the userdata folder (created on first start). If something goes wrong, send game.log.
+
+Licence: this program is free software under the GNU General Public License v3.0
+(licenses/this project (GPL-3.0).txt); the other licences are in the licenses folder.
+Source code: https://github.com/nefariousjosiah/WWE-SVR2009-RECOMP
 "@ | Set-Content "$Out\README.txt" -Encoding ascii
 
 # Licence notices that travel with the binaries.
 $Notices = @{
-  "LICENSE" = "this project (MIT).txt"; "THIRD_PARTY.md" = "THIRD_PARTY.md"
+  "LICENSE" = "this project (GPL-3.0).txt"; "THIRD_PARTY.md" = "THIRD_PARTY.md"
   "src\reblue\LICENSE.reblue" = "re-Blue renderer (BSD-3-Clause).txt"
   "third_party\rexglue-sdk\LICENSE" = "ReXGlue SDK (BSD-3-Clause).txt"
   "third_party\plume\LICENSE" = "plume (MIT).txt"

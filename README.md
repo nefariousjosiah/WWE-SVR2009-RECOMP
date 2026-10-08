@@ -215,7 +215,9 @@ Licences of all of these: [THIRD_PARTY.md](THIRD_PARTY.md).
 ## Licence and legal
 
 This project's own code, including the native renderer for SmackDown vs. Raw, was written by
-nefariousjosiah and is MIT licensed ([LICENSE](LICENSE)). It builds on re:Blue's renderer core
+nefariousjosiah and is licensed under the GNU General Public License v3.0 ([LICENSE](LICENSE)).
+The releases are covered by the same licence, and this repository is their source. It builds on
+re:Blue's renderer core
 (BSD 3-Clause) and the other projects in [THIRD_PARTY.md](THIRD_PARTY.md), which keep their own
 licences; the releases include FFmpeg and libmspack under the LGPL (their source: see
 THIRD_PARTY.md). None of the files from the game

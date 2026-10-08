@@ -1,7 +1,7 @@
 # Third-party components
 
 This project's own code, including the native renderer for SmackDown vs. Raw, is by
-nefariousjosiah and MIT licensed ([LICENSE](LICENSE)). It builds on the projects below, which keep
+nefariousjosiah and licensed under the GNU GPL v3.0 ([LICENSE](LICENSE)). It builds on the projects below, which keep
 their own licences. The release download carries all of these licence texts in its `licenses`
 folder.
 
@@ -10,7 +10,7 @@ folder.
 | Component | How it is included | Licence |
 |---|---|---|
 | [ReXGlue SDK](https://github.com/rexglue/rexglue-sdk) (recompiler + runtime; portions from [Xenia](https://xenia.jp)) | fetched at `c94f5eb` by `tools/windows/setup.ps1`, plus `patches/rexglue-sdk.patch` | BSD 3-Clause (`third_party/rexglue-sdk/LICENSE`) |
-| [re:Blue](https://github.com/zolaware/reblue) renderer core | adapted for SvR in `src/reblue`; the SvR changes are by nefariousjosiah (MIT) | BSD 3-Clause, `src/reblue/LICENSE.reblue` and each file's header |
+| [re:Blue](https://github.com/zolaware/reblue) renderer core | adapted for SvR in `src/reblue`; the SvR changes are by nefariousjosiah (GPL-3.0) | BSD 3-Clause, `src/reblue/LICENSE.reblue` and each file's header |
 | [plume](https://github.com/zolaware/plume) | fetched at `e0c8871`, plus `patches/plume.patch` | MIT |
 | [XenosRecomp](https://github.com/zolaware/reblue-XenosRecomp) (build tool, shader recompiler) | fetched at `339af41`, plus `patches/xenosrecomp.patch` | MIT |
 | [zstd](https://github.com/facebook/zstd) (decompression, single-file decoder) | `third_party/reblue_thirdparty/zstd` | BSD, `third_party/reblue_thirdparty/zstd/LICENSE` |
