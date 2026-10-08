@@ -80,10 +80,6 @@ Set-Location $Root
 Fetch "https://github.com/rexglue/rexglue-sdk.git" "$Root\third_party\rexglue-sdk" $SdkCommit "$Root\patches\rexglue-sdk.patch"
 Fetch "https://github.com/zolaware/plume.git" "$Root\third_party\plume" $PlumeCommit "$Root\patches\plume.patch"
 Fetch "https://github.com/zolaware/reblue-XenosRecomp.git" "$Root\third_party\XenosRecomp" $XenosCommit "$Root\patches\xenosrecomp.patch"
-if (-not (Test-Path "$Root\launcher\CMakeLists.txt")) {
-  Step "Fetching the launcher (submodule)"
-  Run git @("-C", $Root, "submodule", "update", "--init", "--recursive")
-}
 
 # --- 3. SDK build --------------------------------------------------------------
 if (-not (Test-Path "$Root\sdk\bin\rexglue.exe")) {

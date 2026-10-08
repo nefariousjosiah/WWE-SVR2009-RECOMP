@@ -8,4 +8,3 @@
 | [XenosRecomp](https://github.com/zolaware/reblue-XenosRecomp) (build tool, shader recompiler) | fetched at `339af41`, plus `patches/xenosrecomp.patch` | MIT |
 | [zstd](https://github.com/facebook/zstd) (decompression, single-file decoder) | `third_party/reblue_thirdparty/zstd` | BSD, `third_party/reblue_thirdparty/zstd/LICENSE` |
 | Press Start 2P font (FPS counter) | `res/fonts` | SIL Open Font License 1.1, `res/fonts/OFL.txt` |
-| [Launcher](https://github.com/nefariousjosiah/WWE-SVR-Launcher) (SDL 3, Dear ImGui, toml++, stb_image, Roboto) | `launcher/` (submodule) | see the launcher's `THIRD_PARTY.md` |

@@ -70,7 +70,7 @@ and SDK, and has its own build, logs and a copy of the save.
 1. **Complete the map** of the functions re:Blue hooks, and check the guest `D3DDevice` layout
    (re:Blue's `gpu/d3d.h` offsets are for Blue Dragon's XDK build).
 2. **Build integration:** plume, XenosRecomp, DXC (vcpkg) and the adapted `src/gpu` as a second
-   renderer, chosen with a launcher option. The current renderer stays the default and the fallback
+   renderer, chosen with a setting. The current renderer stays the default and the fallback
    until the native one reaches parity.
 3. **Title screen and menus** (2D: textured quads, few shaders).
 4. **Matches:** 3D, render targets, resolves, predicated tiling, MSAA.

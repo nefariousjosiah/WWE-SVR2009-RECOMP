@@ -6,7 +6,7 @@ Each step lists the tool, what "done" looks like, and the traps that cost time o
 
 Rules that apply throughout:
 - Each game is its own project (folder and repository). Nothing in one game's project reads or
-  writes another's; shared code (the launcher) lives in its own repository.
+  writes another's.
 - Game files (ISO, extracted assets, default.xex, generated C++, shader dumps/cache) never go into
   a repository or a release. Players supply their own copy.
 - Test runs: a small muted window (`tools\windows\boot_test.ps1`), never on top of someone's
@@ -146,8 +146,8 @@ g_ScreenSpace (byte 352) applied before the half-pixel offset.
   (`fullscreen`, `svr_60fps`, `log_file`, `svr_render_scale`).
 - `tools\windows\package_portable.ps1` builds `dist\` (add `-NoAssets -NoSave` for a public zip).
   The same Windows zip runs on Steam Deck through Proton (tested 2008: flawless).
-- Release model: prebuilt download (launcher + game), players supply their own disc image. 2008
-  and 2009 are released together.
+- Release model: one prebuilt download per game, players supply their own disc image (next to
+  the exe). 2008 and 2009 are released together.
 
 ## 9. What SvR 2009 added (ported in one day with this playbook)
 
@@ -174,6 +174,6 @@ g_ScreenSpace (byte 352) applied before the half-pixel offset.
   (`SteamDeck=1`).
 - **Build safety:** `build.ps1` always passes `SVR_NATIVE_RENDERER`; a CMake cache reset (cached
   compiler path changed) once silently rebuilt 2008 with the emulated GPU and MSVC.
-- **Releases:** the shared launcher (`launcher/`, its own repository) plus one game per release;
-  `tools/windows/package_release.ps1`. Third-party sources are pinned commits plus `patches/`,
+- **Releases:** one zip per game, `tools/windows/package_release.ps1` (no game files; the disc
+  image goes next to the exe). Third-party sources are pinned commits plus `patches/`,
   checked to reproduce the working copies exactly.
