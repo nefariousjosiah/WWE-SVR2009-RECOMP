@@ -17,6 +17,7 @@
 #include <mutex>
 #include <optional>
 
+#include <rex/cvar.h>
 #include <rex/graphics/xenos.h>
 #include <rex/hook.h>
 #include <rex/runtime.h>
@@ -32,6 +33,12 @@
 #if defined(SVR_NATIVE_RENDERER)
 #include "svr_draw_log.h"
 #include "svr_geometry.h"
+
+#if defined(SVR_NATIVE_RENDERER)
+REXCVAR_DEFINE_BOOL(svr_edge_blur, false, "SvR",
+                    "SvR 2009's own edge-blur filter (the console's anti-aliasing): off keeps the image "
+                    "sharp; the higher internal resolution already smooths edges");
+#endif
 #include "svr_hook.h"
 #include "svr_resources.h"
 #endif
@@ -148,6 +155,14 @@ void DispatchDraw(u32 device_guest, u32 primitive_type, const char *name,
         return;
     }
   }
+  // SvR 2009's edge-blur post pass (pixel shader 0x3369F21B5099E8FB; the same filter as SvR 2010's): a 3x3
+  // Sobel edge test that replaces every edge pixel with the average of its 9 neighbours. On the
+  // console that softened jaggies at 720p; here its 1-pixel 720p offsets are 2+ pixels at the
+  // internal resolution, so it blurs hair, tattoos, ropes and the crowd while the supersampling
+  // already smooths edges. Skipping the draw leaves the scene as rendered.
+  if (!REXCVAR_GET(svr_edge_blur) && s.pixel_shader && s.pixel_shader->shaderCacheEntry &&
+      s.pixel_shader->shaderCacheEntry->hash == 0x3369F21B5099E8FBull)
+    return;
   // Vulkan has no "no index buffer" state: an indexed draw with none bound, or reaching past the
   // end of the bound one, can hang the GPU. Such a draw is skipped (and counted in the log).
   if (args.indexed && primitive_type != 13) {

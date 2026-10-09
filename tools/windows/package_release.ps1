@@ -49,6 +49,9 @@ svr_render_scale = 0
 # Screen shape: 5 = the game's 16:9 (thin bars on 16:10 screens such as the Steam Deck),
 # 6 = stretch to fill.
 bd_aspect_ratio = 5
+# The game's own edge-blur filter (the console's anti-aliasing): false keeps the image sharp,
+# true restores the original, softer look.
+svr_edge_blur = false
 log_file = "game.log"
 "@ | Set-Content "$Out\$Id.toml" -Encoding ascii
 

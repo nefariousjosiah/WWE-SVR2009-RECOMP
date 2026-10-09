@@ -41,6 +41,9 @@ loading.
 - **Up to 4K.** Internal resolution follows your screen: 1440p on 1080p and 1440p monitors, 4K on
   4K monitors, 720p on the Steam Deck. Or pick 720p / 1440p / 4K yourself. 16x anisotropic
   filtering.
+- **Sharper image:** the game's own edge-blur filter (the console's cheap anti-aliasing, which
+  smeared hair, tattoos, ropes and the crowd) is off; the higher internal resolution smooths edges
+  instead. `svr_edge_blur = true` in `svr2009.toml` brings the original look back.
 - **In-game settings menu:** F1, or Back + Start on a controller: resolution, fullscreen or
   window, 60 or 30 fps, screen shape, FPS counter, sound and keyboard controls. Saved for next
   time.
