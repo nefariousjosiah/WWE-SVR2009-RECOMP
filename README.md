@@ -19,7 +19,8 @@ loading.
 > settings menu.
 
 > **Work in progress.** This port gets regular updates, and bugs are fixed as they're found and
-> reported, so don't expect a finished port yet. If you run into a problem, please
+> reported, so don't expect a finished port yet. Known issue: cutscene captions show up early
+> (see [Known issues](#known-issues)). If you run into something else, please
 > [open an issue](https://github.com/nefariousjosiah/WWE-SVR2009-RECOMP/issues) with your graphics
 > card, `game.log` from the game's folder and a screenshot.
 
@@ -185,6 +186,11 @@ Notes for the Deck:
 | Black screen, or the game closes | Update your graphics driver (the renderer needs Vulkan), then try again. If it keeps happening, open an issue with `game.log` from the game's folder. |
 | It runs slowly | **F1** > *Resolution* > **720p** or **1440p** (applies on the next start): lower resolutions need less from the graphics card. |
 | Windows blocks it | *More info* > *Run anyway* (the program isn't code-signed). |
+
+## Known issues
+
+- **Cutscene captions out of sync:** in cutscenes, captions appear about 3 to 5 seconds before
+  the line is spoken and disappear 3 to 5 seconds early. A fix is being worked on.
 
 ## How it works
 
