@@ -111,6 +111,11 @@ from your own Xbox 360 (copied off its hard drive, for example with a USB stick 
 Horizon or Velocity). They're the files with long names like `9FBE32EF4CDA...` from the console's
 `Content\0000000000000000\54510826\00000002\` folder.
 
+<p align="center">
+  <img src="docs/showcase/dlc-jericho.gif" width="480" alt="DLC superstar Chris Jericho in a tag match">
+  <img src="docs/showcase/dlc-doink.gif" width="480" alt="DLC superstar Doink the Clown in a tag match">
+</p>
+
 1. Copy the package files into the `dlc` folder next to `svr2009.exe` (any subfolder is fine).
 2. Start the game. The first start with new DLC unpacks it into `userdata` (a few seconds); after
    that the DLC superstars are on the roster.
