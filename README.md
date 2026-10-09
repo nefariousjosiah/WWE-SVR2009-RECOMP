@@ -18,6 +18,11 @@ loading.
 > game, **F1** (or **Back + Start** on a controller, **View + Menu** on the Steam Deck) opens the
 > settings menu.
 
+> **Work in progress.** This port gets regular updates, and bugs are fixed as they're found and
+> reported, so don't expect a finished port yet. If you run into a problem, please
+> [open an issue](https://github.com/nefariousjosiah/WWE-SVR2009-RECOMP/issues) with your graphics
+> card, `game.log` from the game's folder and a screenshot.
+
 ![The in-game settings menu (F1, or Back + Start on a controller)](docs/settings-menu.png)
 
 ## Showcase
