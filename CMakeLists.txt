@@ -3,7 +3,8 @@
 # SDK boilerplate lives in generated/rexglue.cmake.
 
 cmake_minimum_required(VERSION 3.25)
-project(svr2009 LANGUAGES CXX)
+# The release version (shown in the in-game settings menu; package_release.ps1 uses it too).
+project(svr2009 VERSION 0.2 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -27,6 +28,7 @@ else()
 endif()
 
 rexglue_setup_target(svr2009 GPU_PLUGINS xenos)
+target_compile_definitions(svr2009 PRIVATE SVR_VERSION="${PROJECT_VERSION}")
 if(WIN32)
     # Game file picker (src/game_locator.cpp).
     target_link_libraries(svr2009 PRIVATE comdlg32)

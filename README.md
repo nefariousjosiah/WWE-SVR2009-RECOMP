@@ -50,6 +50,8 @@ loading.
 - **Faster loading:** matches load in about 20 seconds instead of nearly a minute (the game
   paced its loading for the console's DVD drive).
 - **Plays straight from your disc image**: nothing is extracted or installed.
+- **DLC:** if you own SvR 2009's downloadable content, drop your own package files into the `dlc`
+  folder and the new superstars are in the game (see [DLC](#dlc-optional)).
 - **Controllers** (Xbox, PlayStation, Switch Pro, the Deck's controls) through SDL. Keyboard controls
   are included but not tested yet, so a controller is recommended.
 
@@ -100,6 +102,21 @@ tested yet. Their default layout (rebind with **F4** in game):
 | Back | Tab / Z | | Stick presses | F / K |
 
 **F1** (or **Back + Start**) opens the settings menu; **F2** shows or hides the FPS counter.
+
+## DLC (optional)
+
+SvR 2009's downloadable content (the Roster Update packs: new superstars, their entrances and an
+extra costume) works too. **None of it is included: you need your own DLC**, the package files
+from your own Xbox 360 (copied off its hard drive, for example with a USB stick and a tool such as
+Horizon or Velocity). They're the files with long names like `9FBE32EF4CDA...` from the console's
+`Content\0000000000000000\54510826\00000002\` folder.
+
+1. Copy the package files into the `dlc` folder next to `svr2009.exe` (any subfolder is fine).
+2. Start the game. The first start with new DLC unpacks it into `userdata` (a few seconds); after
+   that the DLC superstars are on the roster.
+
+Files that aren't SvR 2009 DLC are ignored. Once installed, the files in `dlc` can be deleted to
+save space (keep `userdata`). It works the same on the Steam Deck.
 
 ## Linux and Steam Deck (Proton): install and play
 
@@ -190,8 +207,8 @@ and a match or two with shader dumping on, run `tools\native\build_shader_cache.
 `setup.ps1` again.
 
 Afterwards: `tools\windows\build.ps1` rebuilds, `tools\windows\run.ps1` runs it, and
-`tools\windows\package_release.ps1 -Version 1.0` makes the release zip (the game, no game
-files).
+`tools\windows\package_release.ps1` makes the release zip (the game, no game
+files; the version number comes from `CMakeLists.txt`).
 
 Repository layout: `src/` the game-specific code (`native/` renderer glue, `reblue/` the renderer),
 `config/` recompiler configuration, `patches/` changes to the third-party

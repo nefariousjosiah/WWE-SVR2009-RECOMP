@@ -17,6 +17,7 @@
 #include <memory>
 
 #include "fps_counter.h"
+#include "dlc_install.h"
 #include "game_locator.h"
 #include "settings_menu.h"
 #if defined(SVR_NATIVE_RENDERER)
@@ -29,6 +30,10 @@
 
 REXCVAR_DECLARE(std::string, gpu_backend);
 REXCVAR_DECLARE(bool, svr_fps_counter);
+
+#ifndef SVR_VERSION
+#define SVR_VERSION "dev"  // set by CMakeLists.txt (project VERSION)
+#endif
 
 inline constexpr const char* kWindowTitle = "WWE SmackDown vs. Raw 2009";
 
@@ -98,6 +103,9 @@ class Svr2009App : public rex::ReXApp {
     if (window())
       window()->SetTitle(kWindowTitle);
     frame_dumper_.Start(runtime()->graphics_system());
+    // Add-on packages in <exe>/dlc are installed once (dlc_install.h).
+    svr::InstallDlcPackages(runtime()->kernel_state(), rex::filesystem::GetExecutableFolder() / "dlc",
+                           runtime()->user_data_root());
     // The game gets no input while the settings menu is open (or while the mouse is over an
     // overlay). Set here: the runtime (and ReXApp's own callback) exists only from now on.
     if (auto* input = static_cast<rex::input::InputSystem*>(runtime()->input_system())) {
@@ -163,7 +171,7 @@ class Svr2009App : public rex::ReXApp {
         fps_counter_.reset();
     };
     settings_menu_ = std::make_unique<SettingsMenuDialog>(
-        drawer, "WWE SmackDown vs. Raw 2009",
+        drawer, "WWE SmackDown vs. Raw 2009   v" SVR_VERSION,
         rex::filesystem::GetExecutableFolder() / "svr2009.toml", std::move(hooks));
     rex::ui::RegisterBind("bind_svr_settings", "F1", "Open the settings menu", [this] {
       if (settings_menu_)

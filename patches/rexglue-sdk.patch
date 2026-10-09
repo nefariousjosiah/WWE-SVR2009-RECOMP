@@ -873,3 +873,18 @@ index b94fe9e..7199826 100644
      immediate_drawer_ = OnCreateImmediateDrawer();
      if (immediate_drawer_) {
        SetupOverlays(/*presenter=*/nullptr, immediate_drawer_.get());
+diff --git a/src/kernel/xam/xam_content.cpp b/src/kernel/xam/xam_content.cpp
+index 1fb1e16..645c04a 100644
+--- a/src/kernel/xam/xam_content.cpp
++++ b/src/kernel/xam/xam_content.cpp
+@@ -141,7 +141,9 @@ u32 xeXamContentCreate(u32 user_index, mapped_string root_name, mapped_void cont
+     *disposition_ptr = 0;
+   }
+ 
+-  auto run = [content_manager, xuid, root_name = root_name.value(), flags, content_data,
++  // Copy the root name: with an overlapped call this runs later on another thread, after the
++  // game may have reused the buffer the name was in (SvR 2009 opens its DLC as "dlc0" this way).
++  auto run = [content_manager, xuid, root_name = std::string(root_name.value()), flags, content_data,
+               disposition_ptr,
+               license_mask_ptr](uint32_t& extended_error, uint32_t& length) -> X_RESULT {
+     X_RESULT result = X_ERROR_INVALID_PARAMETER;

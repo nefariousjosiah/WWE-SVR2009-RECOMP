@@ -1,10 +1,14 @@
 # Build the public release zip: this game's native build, WITHOUT any game files.
-#   powershell -ExecutionPolicy Bypass -File tools\windows\package_release.ps1 [-Version 1.0]
+#   powershell -ExecutionPolicy Bypass -File tools\windows\package_release.ps1
+# The version comes from CMakeLists.txt (project VERSION), the same one the game shows in its menu.
 # Output: dist\v<version>\SVR2009-NATIVE.zip (and the unpacked folder dist\SVR2009-NATIVE-v<version>).
 # Players put their own disc image next to svr2009.exe (or pick it on first start) and run it.
-param([string]$Version = "dev")
+param([string]$Version = "")
 $ErrorActionPreference = "Stop"
 $Root = (Resolve-Path "$PSScriptRoot\..\..").Path
+$ProjectVersion = [regex]::Match((Get-Content "$Root\CMakeLists.txt" -Raw), "project\(\S+ VERSION ([0-9.]+)").Groups[1].Value
+if (-not $Version) { $Version = $ProjectVersion }
+if ($Version -ne $ProjectVersion) { throw "-Version $Version differs from CMakeLists.txt ($ProjectVersion): the game would show the wrong version" }
 $Id = "svr2009"
 $Title = "WWE SmackDown vs. Raw 2009"
 $Name = "SVR2009-NATIVE"
@@ -17,7 +21,15 @@ if (-not (Select-String -Path "$Build\CMakeCache.txt" -Pattern "^SVR_NATIVE_REND
 
 $Out = "$Root\dist\$Name-v$Version"
 if (Test-Path $Out) { Remove-Item $Out -Recurse -Force }
-New-Item -ItemType Directory -Force $Out, "$Out\licenses" | Out-Null
+New-Item -ItemType Directory -Force $Out, "$Out\licenses", "$Out\dlc" | Out-Null
+@"
+Optional: your own WWE SmackDown vs. Raw 2009 DLC goes in this folder.
+
+Copy the DLC package files from your own Xbox 360 (the files with long names like
+9FBE32EF4CDA... from Content\0000000000000000\54510826\00000002\ on its hard drive) into
+this folder and start the game: they are installed into userdata the first time, and the DLC
+superstars are on the roster. No DLC is included with this download.
+"@ | Set-Content "$Out\dlc\PUT YOUR DLC HERE.txt" -Encoding ascii
 foreach ($f in "$Id.exe", "rexruntime.dll", "rexgpu-xenos.dll") { Copy-Item "$Build\$f" $Out }
 Copy-Item "$Build\fonts" $Out -Recurse
 # Visual C++ runtime, app-local (Proton and PCs without the redistributable).
@@ -66,6 +78,7 @@ Settings: press F1 in game (or Back + Start on a controller) for the settings me
 up to 4K, fullscreen or window, 60 or 30 fps, screen shape, FPS counter, sound, keyboard
 controls. Saved in $Id.toml.
 Saves: the userdata folder (created on first start). If something goes wrong, send game.log.
+DLC: if you own SvR 2009's DLC, put your own package files in the dlc folder (see the note there).
 
 Licence: this program is free software under the GNU General Public License v3.0
 (licenses/this project (GPL-3.0).txt); the other licences are in the licenses folder.
