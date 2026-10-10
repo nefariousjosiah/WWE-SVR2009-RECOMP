@@ -9,6 +9,7 @@
 #include <rex/ui/imgui_dialog.h>
 
 #include <algorithm>
+#include <cfloat>
 #include <chrono>
 #include <cstdint>
 #include <cstring>
@@ -18,6 +19,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "updater.h"
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
@@ -36,6 +39,8 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
     std::function<void(bool)> set_fullscreen;
     std::function<bool()> fps_counter_on;
     std::function<void(bool)> set_fps_counter;
+    std::function<svr::Updater*()> updater;  // nullptr until the game has started
+    std::function<void()> quit;               // after the updater started the new version
   };
 
   SettingsMenuDialog(rex::ui::ImGuiDrawer* drawer, std::string title, std::filesystem::path toml,
@@ -65,8 +70,10 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
       if (pad.combo && !last_.combo)
         Open();
       last_ = pad;
-      if (!open_)
+      if (!open_) {
+        DrawUpdateNotice(io);
         return;
+      }
     }
     HandleInput(pad);
     last_ = pad;
@@ -75,7 +82,19 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
   }
 
  private:
-  enum RowId { kResolution, kDisplay, kFrameRate, kShape, kCounter, kSound, kKeyboard, kClose, kRows };
+  enum RowId {
+    kResolution,
+    kDisplay,
+    kFrameRate,
+    kShape,
+    kCounter,
+    kSound,
+    kKeyboard,
+    kCheckUpdates,
+    kUpdate,
+    kClose,
+    kRows
+  };
   struct Row {
     const char* name;
     std::vector<const char*> labels;
@@ -105,6 +124,10 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
         {"Keyboard controls", {"On", "Off"},
          "The keyboard works as a controller (rebind keys with F4). Not tested yet: a controller is "
          "recommended."},
+        {"Check for updates", {"At startup", "Off"},
+         "At startup the game asks GitHub whether a newer version of this port is out. Nothing is "
+         "downloaded unless you choose Update."},
+        {"Update", {}, ""},  // value and hint from the updater
         {"Close", {}, "Back to the game. Your settings are saved."},
     };
     return rows;
@@ -120,6 +143,8 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
     values_[kCounter] = hooks_.fps_counter_on && hooks_.fps_counter_on() ? 0 : 1;
     values_[kSound] = Get("audio_mute") == "true" ? 1 : 0;
     values_[kKeyboard] = Get("mnk_mode") == "true" ? 0 : 1;
+    values_[kCheckUpdates] = Get("svr_check_updates") == "false" ? 1 : 0;
+    confirm_update_ = false;
   }
   void Close() {
     open_ = false;
@@ -156,7 +181,137 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
       case kKeyboard:
         Set("mnk_mode", v == 0 ? "true" : "false");
         break;
+      case kCheckUpdates:
+        Set("svr_check_updates", v == 0 ? "true" : "false");
+        if (v == 0)
+          if (svr::Updater* u = Updater(); u && u->state() == svr::Updater::State::kIdle)
+            u->StartCheck();
+        break;
     }
+  }
+
+  svr::Updater* Updater() const { return hooks_.updater ? hooks_.updater() : nullptr; }
+
+  // The Update row: check, confirm, install, restart.
+  void UpdateAction() {
+    svr::Updater* u = Updater();
+    if (!u)
+      return;
+    using S = svr::Updater::State;
+    switch (u->state()) {
+      case S::kIdle:
+      case S::kUpToDate:
+      case S::kCheckFailed:
+      case S::kFailed:
+        u->StartCheck();
+        break;
+      case S::kAvailable:
+        if (!confirm_update_) {
+          confirm_update_ = true;
+        } else {
+          confirm_update_ = false;
+          u->StartInstall();
+        }
+        break;
+      case S::kInstalled:
+        if (u->Restart()) {
+          if (hooks_.quit)
+            hooks_.quit();
+        } else {
+          restart_failed_ = true;
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
+  std::string UpdateValue() const {
+    svr::Updater* u = Updater();
+    if (!u)
+      return "Not available";
+    using S = svr::Updater::State;
+    switch (u->state()) {
+      case S::kIdle: return "Check now";
+      case S::kChecking: return "Checking...";
+      case S::kUpToDate: return "Up to date";
+      case S::kAvailable:
+        return confirm_update_ ? "Press again to install" : "Install version " + u->latest_version();
+      case S::kCheckFailed: return "Couldn't check: try again";
+      case S::kWorking: return "Updating... " + std::to_string(int(u->progress() * 100)) + "%";
+      case S::kInstalled: return restart_failed_ ? "Close and restart the game" : "Restart now";
+      case S::kFailed: return "Update stopped: try again";
+    }
+    return "";
+  }
+
+  std::string UpdateHint() const {
+    svr::Updater* u = Updater();
+    if (!u)
+      return "Updates can be checked once the game has started.";
+    using S = svr::Updater::State;
+    const std::string status = u->status();
+    switch (u->state()) {
+      case S::kAvailable:
+        return confirm_update_
+                   ? "Press again to download and install version " + u->latest_version() +
+                         " now. Your saves are copied to the save_backups folder first, and your "
+                         "saves, settings, DLC and disc image are kept."
+                   : status + " You have " SVR_VERSION ". Updating keeps your saves, settings, DLC "
+                              "and disc image, and backs up your saves first.";
+      case S::kWorking:
+        return status + " Please don't close the game.";
+      case S::kInstalled:
+        return restart_failed_ ? status + " The game couldn't restart itself: close it and start "
+                                          "it again."
+                               : status;
+      default:
+        return status.empty() ? "Check GitHub for a newer version of this port." : status;
+    }
+  }
+
+  // A short notice when a newer version is found, while the menu is closed.
+  void DrawUpdateNotice(ImGuiIO& io) {
+    svr::Updater* u = Updater();
+    // Developer aid: SVR_UPDATE_AUTO=1 installs an available update without the menu (tests of
+    // the updater), =2 also restarts into it.
+    static const int auto_update = [] {
+      const char* v = std::getenv("SVR_UPDATE_AUTO");
+      return v ? std::atoi(v) : 0;
+    }();
+    if (u && auto_update > 0) {
+      if (u->state() == svr::Updater::State::kAvailable)
+        u->StartInstall();
+      else if (auto_update > 1 && u->state() == svr::Updater::State::kInstalled && u->Restart() &&
+               hooks_.quit)
+        hooks_.quit();
+    }
+    if (!u || u->state() != svr::Updater::State::kAvailable)
+      return;
+    const auto now = Clock::now();
+    if (!notice_shown_) {
+      notice_shown_ = true;
+      notice_until_ = now + std::chrono::seconds(12);
+    }
+    if (now >= notice_until_)
+      return;
+    const float s = std::max(0.6f, io.DisplaySize.y / 1080.0f);
+    const std::string line1 = "Update available: version " + u->latest_version();
+    const char* line2 = "Open Settings (F1, or Back + Start) to install it";
+    ImFont* font = g_menu_font ? g_menu_font : ImGui::GetFont();
+    const float size1 = 24 * s, size2 = 18 * s;
+    const ImVec2 t1 = font->CalcTextSizeA(size1, FLT_MAX, 0.0f, line1.c_str());
+    const ImVec2 t2 = font->CalcTextSizeA(size2, FLT_MAX, 0.0f, line2);
+    const float pad = 16 * s;
+    const ImVec2 p0(24 * s, io.DisplaySize.y - 24 * s - (t1.y + t2.y + pad * 2 + 6 * s));
+    const ImVec2 p1(p0.x + std::max(t1.x, t2.x) + pad * 2, io.DisplaySize.y - 24 * s);
+    ImDrawList* dl = ImGui::GetForegroundDrawList();
+    dl->AddRectFilled(p0, p1, IM_COL32(18, 21, 30, 235), 10 * s);
+    dl->AddRectFilled(p0, ImVec2(p0.x + 5 * s, p1.y), IM_COL32(214, 38, 38, 255), 3 * s);
+    dl->AddText(font, size1, ImVec2(p0.x + pad, p0.y + pad), IM_COL32(236, 238, 244, 255),
+                line1.c_str());
+    dl->AddText(font, size2, ImVec2(p0.x + pad, p0.y + pad + t1.y + 6 * s),
+                IM_COL32(178, 184, 198, 255), line2);
   }
   void Set(const char* name, const std::string& value) {
     rex::cvar::SetFlagByName(name, value);
@@ -192,7 +347,7 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
   }
 
   void Change(int delta) {
-    if (selected_ >= kClose)
+    if (selected_ >= kUpdate)
       return;
     const int count = int(Rows()[selected_].labels.size());
     values_[selected_] = (values_[selected_] + delta + count) % count;
@@ -248,6 +403,8 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
                         ImGui::IsKeyPressed(ImGuiKey_Space, false);
     const bool back = (pad.b && !last_.b) || (pad.combo && !last_.combo) ||
                       ImGui::IsKeyPressed(ImGuiKey_Escape, false);
+    if (up || down)
+      confirm_update_ = false;
     if (up)
       selected_ = (selected_ + kRows - 1) % kRows;
     if (down)
@@ -259,6 +416,8 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
     if (accept) {
       if (selected_ == kClose)
         Close();
+      else if (selected_ == kUpdate)
+        UpdateAction();
       else
         Change(+1);
     }
@@ -306,12 +465,18 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
         ImGui::InvisibleButton("row", ImVec2(inner, row_h));
         const bool hovered = ImGui::IsItemHovered();
         if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+          if (selected_ != i)
+            confirm_update_ = false;
           selected_ = i;
           if (i == kClose)
             Close();
+          else if (i == kUpdate)
+            UpdateAction();
           else
             Change(io.MousePos.x < p0.x + value_x + (inner - value_x) * 0.5f ? -1 : +1);
         } else if (hovered && (io.MouseDelta.x != 0 || io.MouseDelta.y != 0)) {
+          if (selected_ != i)
+            confirm_update_ = false;
           selected_ = i;
         }
         ImGui::PopID();
@@ -329,6 +494,16 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
           continue;
         }
         dl->AddText(ImVec2(p0.x + 20 * s, cy - fh * 0.5f), sel ? text : dim, row.name);
+        if (i == kUpdate) {  // a button, not a choice: no arrows
+          const std::string value = UpdateValue();
+          const float vw = ImGui::CalcTextSize(value.c_str()).x;
+          const float mid = p0.x + value_x + (inner - value_x) * 0.5f;
+          const bool ready = Updater() && (Updater()->state() == svr::Updater::State::kAvailable ||
+                                           Updater()->state() == svr::Updater::State::kInstalled);
+          dl->AddText(ImVec2(mid - vw * 0.5f, cy - fh * 0.5f),
+                      ready ? accent : (sel ? IM_COL32(255, 255, 255, 255) : text), value.c_str());
+          continue;
+        }
         const char* value = row.labels[values_[i]];
         const float vw = ImGui::CalcTextSize(value).x;
         const float mid = p0.x + value_x + (inner - value_x) * 0.5f;
@@ -345,7 +520,10 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
       ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(178, 184, 198, 255));
       ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + inner);
       const float hint_y = ImGui::GetCursorPosY();
-      ImGui::TextWrapped("%s", Rows()[selected_].hint);
+      if (selected_ == kUpdate)
+        ImGui::TextWrapped("%s", UpdateHint().c_str());
+      else
+        ImGui::TextWrapped("%s", Rows()[selected_].hint);
       ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY(), hint_y + 3 * ImGui::GetTextLineHeightWithSpacing()));
       ImGui::PopTextWrapPos();
       ImGui::PopStyleColor();
@@ -367,6 +545,8 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
   std::filesystem::path toml_;
   Hooks hooks_;
   bool open_ = false, hold_ = false;
+  bool confirm_update_ = false, restart_failed_ = false, notice_shown_ = false;
+  Clock::time_point notice_until_;
   int selected_ = 0;
   int values_[kRows] = {};
   Pad last_;

@@ -4,7 +4,7 @@
 
 cmake_minimum_required(VERSION 3.25)
 # The release version (shown in the in-game settings menu; package_release.ps1 uses it too).
-project(svr2009 VERSION 0.4 LANGUAGES CXX)
+project(svr2009 VERSION 0.5 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -19,6 +19,7 @@ set(SVR2009_SOURCES
     src/input_script.cpp
     src/timer_resolution.cpp
     src/loading_hooks.cpp
+    src/updater.cpp
 )
 
 if(WIN32)
@@ -34,7 +35,14 @@ if(WIN32)
     target_link_libraries(svr2009 PRIVATE comdlg32)
     # 1 ms timer resolution (src/timer_resolution.cpp).
     target_link_libraries(svr2009 PRIVATE winmm)
+    # Update check and download (src/updater.cpp).
+    target_link_libraries(svr2009 PRIVATE winhttp)
 endif()
+# The updater reads GitHub's release info with nlohmann/json and unpacks the release zip with
+# stb_image's zlib decoder, both header-only and already in the SDK's third-party tree.
+target_include_directories(svr2009 PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/rexglue-sdk/thirdparty/inja/third_party/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/rexglue-sdk/thirdparty/stb)
 
 # Developer call census of the D3D library functions, for native
 # renderer reverse engineering. Off by default; never ship a build with it on.

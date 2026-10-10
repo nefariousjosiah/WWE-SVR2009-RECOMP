@@ -16,6 +16,8 @@ folder.
 | [zstd](https://github.com/facebook/zstd) (decompression, single-file decoder) | `third_party/reblue_thirdparty/zstd` | BSD, `third_party/reblue_thirdparty/zstd/LICENSE` |
 | Press Start 2P font (FPS counter) | `res/fonts` | SIL Open Font License 1.1, `res/fonts/OFL.txt` |
 | Roboto Medium font (settings menu) | `res/fonts` | Apache 2.0, `res/fonts/LICENSE-Roboto.txt` |
+| [nlohmann/json](https://github.com/nlohmann/json) (the updater reads GitHub's release info) | header from the ReXGlue SDK's third-party tree, compiled into `svr2009.exe` | MIT |
+| [stb_image](https://github.com/nothings/stb)'s zlib decoder (the updater unpacks the release zip) | header from the ReXGlue SDK's third-party tree, compiled into `svr2009.exe` | MIT or public domain, `third_party/licenses/stb-LICENSE.txt` |
 
 ## Built into the game's DLLs
 

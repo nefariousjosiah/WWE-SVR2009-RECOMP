@@ -81,6 +81,9 @@ Settings: press F1 in game (or Back + Start on a controller) for the settings me
 up to 4K, fullscreen or window, 60 or 30 fps, screen shape, FPS counter, sound, keyboard
 controls. Saved in $Id.toml.
 Saves: the userdata folder (created on first start). If something goes wrong, send game.log.
+Updates: when a new version is out, the game says so at startup; install it from the settings
+menu (Update), only if you want to. Your saves, settings, DLC and disc image are kept, and your
+saves are backed up to the save_backups folder first. Turn the check off there too.
 DLC: if you own SvR 2009's DLC, put your own package files in the dlc folder (see the note there).
 
 Licence: this program is free software under the GNU General Public License v3.0
@@ -116,6 +119,9 @@ $Notices = @{
   "third_party\rexglue-sdk\thirdparty\vulkan-headers\LICENSE.md" = "Vulkan headers.txt"
   "third_party\rexglue-sdk\thirdparty\spirv-headers\LICENSE" = "SPIR-V headers.txt"
   "third_party\licenses\renderdoc_app-LICENSE.txt" = "RenderDoc API header (MIT).txt"
+  # The updater (src/updater.cpp).
+  "third_party\rexglue-sdk\thirdparty\inja\third_party\include\nlohmann\LICENSE.MIT" = "nlohmann json (MIT).txt"
+  "third_party\licenses\stb-LICENSE.txt" = "stb (MIT or public domain).txt"
 }
 foreach ($k in $Notices.Keys) { Copy-Item "$Root\$k" "$Out\licenses\$($Notices[$k])" }
 
