@@ -9,6 +9,8 @@
 
 #include "frame_stats.h"
 
+#include "core/memory_helpers.h"
+
 #include <rex/cvar.h>
 #include <rex/logging.h>
 #include <rex/ppc.h>
@@ -21,7 +23,8 @@
 
 REXCVAR_DEFINE_BOOL(svr_60fps, false, "Game",
                     "Keep the game's frame-rate mode at 60 (50 PAL) instead of dropping to 30 (25) "
-                    "in matches and cutscenes; game timing follows the mode");
+                    "in matches; game timing follows the mode (Road to WrestleMania cutscenes "
+                    "keep 30, their captions are timed for it)");
 
 // The game keeps a frame-rate mode in a global struct at 0x82C60BC8: +8 target fps (60/50/30/25),
 // +12 mode lock, per-frame time-step floats (+28/+32/+36/+60/+64) and +40 ms per frame, all set
@@ -52,13 +55,36 @@ void SvrSetFrameRateHook(PPCRegister& r3) {
   }
 }
 
+// Scenes ask for the 30 fps mode from sub_824E2658, which reads the scene kind from the game state
+// (+4076: 4 menus, which go back to 60; 7 a match; 8 a Road to WrestleMania cutscene). Cutscene
+// captions are timed in 30 fps frames, so at 60 they ran 3-5 s ahead of the voices: cutscenes keep
+// the game's own 30 fps mode, as on the console, and the game returns to 60 when they end.
+REXCVAR_DEFINE_BOOL(svr_cutscene_30fps, true, "Game",
+                    "Road to WrestleMania cutscenes keep the game's 30 fps mode (their captions are "
+                    "timed in 30 fps frames)");
+
+constexpr uint32_t kSceneKindCutscene = 8;
+static std::atomic<uint32_t> g_scene_kind{0};
+
+// sub_824E2658 at the "drop to 30" call (0x824E2690), r3 = game state.
+void SvrSceneKindHook(PPCRegister& r3) {
+  g_scene_kind.store(bd::mem::load<uint32_t>(r3.u32 + 4076), std::memory_order_relaxed);
+}
+
+// "Back to 60 (50) fps mode" (sub_82477260 entry).
+void SvrBackTo60Hook() { REXLOG_INFO("[fps] game switched back to 60 fps mode"); }
+
 // "Drop to 30 (25) fps mode" (sub_824771C0 entry); returning true skips the function.
 bool SvrSkip30ModeHook() {
-  bool skip = REXCVAR_GET(svr_60fps);
+  const uint32_t kind = g_scene_kind.exchange(0, std::memory_order_relaxed);
+  const bool cutscene = kind == kSceneKindCutscene;
+  bool skip = REXCVAR_GET(svr_60fps) && !(cutscene && REXCVAR_GET(svr_cutscene_30fps));
   static std::atomic<uint32_t> calls{0};
   uint32_t n = calls.fetch_add(1, std::memory_order_relaxed);
   if (n < 20 || n % 100 == 0) {
-    REXLOG_INFO("[fps] game switched to 30 fps mode{}", skip ? "; kept at 60" : "");
+    REXLOG_INFO("[fps] game switched to 30 fps mode{} (scene kind {})",
+                skip ? "; kept at 60" : (cutscene && REXCVAR_GET(svr_60fps)) ? "; cutscene, kept at 30" : "",
+                kind);
   }
   return skip;
 }

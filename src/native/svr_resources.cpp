@@ -18,6 +18,7 @@
 #include "core/logging.h"
 #include "core/memory_helpers.h"
 #include "gpu/d3d.h"
+#include "gpu/device.h"
 #include "gpu/host_resource_heap.h"
 #include "gpu/native_texture_mirror.h"
 #include "gpu/output.h"
@@ -45,8 +46,17 @@ GuestTexture *SvrCreateHostSurface(u32 width, u32 height, u32 format);
 namespace {
 
 std::mutex g_mutex;
-std::unordered_map<u32, GuestTexture *> g_surfaces;  // D3DSurface VA -> host render target
-std::unordered_map<u32, GuestTexture *> g_targets;   // texture VA -> GPU-written host texture
+
+// A host resource made for a guest surface or GPU-written texture, with the guest description it
+// was made from. Road to WrestleMania unloads characters between scenes and reuses those guest
+// objects for other textures (another wrestler's composited skin at another size): a host
+// resource kept by address alone then showed the previous character's skin mixed into the new one.
+struct HostTarget {
+  GuestTexture *host = nullptr;
+  u32 desc[2] = {};  // surface: size bits, format; texture: fetch dwords 1 (format, base), 2 (size)
+};
+std::unordered_map<u32, HostTarget> g_surfaces;  // D3DSurface VA -> host render target
+std::unordered_map<u32, HostTarget> g_targets;   // texture VA -> GPU-written host texture
 
 // The texture's GPUTEXTURE_FETCH_CONSTANT (D3DTexture+0x1C), as host-order dwords.
 bool ReadFetch(u32 texture_va, rex::graphics::xenos::xe_gpu_texture_fetch_t &fetch) {
@@ -56,6 +66,33 @@ bool ReadFetch(u32 texture_va, rex::graphics::xenos::xe_gpu_texture_fetch_t &fet
   for (int i = 0; i < 6; ++i)
     (&fetch.dword_0)[i] = u32(texture->Format.dword[i]);
   return fetch.type == rex::graphics::xenos::FetchConstantType::kTexture;
+}
+
+// Sets aside a host resource whose guest object now describes something else. It is not destroyed:
+// these host-made targets are linked into the renderer's resolve bookkeeping, which the
+// D3DResource_Destroy path doesn't expect for them (freeing one crashed in
+// DrainResolveLinksLocked). Rare in practice (a guest object changing size or format), so the
+// memory is simply kept.
+std::vector<GuestTexture *> g_retired;
+void RetireHost(GuestTexture *host) {
+  if (!host)
+    return;
+  g_retired.push_back(host);
+  BD_INFO("SvR: {} stale host target(s) set aside", g_retired.size());
+}
+
+// Whether g_targets' entry for texture_va still matches the texture there; a stale one is retired
+// and removed. Caller holds g_mutex.
+bool TargetCurrent(u32 texture_va, std::unordered_map<u32, HostTarget>::iterator it) {
+  rex::graphics::xenos::xe_gpu_texture_fetch_t fetch{};
+  if (!ReadFetch(texture_va, fetch) ||
+      (fetch.dword_1 == it->second.desc[0] && fetch.dword_2 == it->second.desc[1]))
+    return true;
+  BD_INFO("SvR target 0x{:08X}: now {}x{} fmt {} (was another texture) -> rebuilt", texture_va,
+          fetch.size_2d.width + 1, fetch.size_2d.height + 1, u32(fetch.format));
+  RetireHost(it->second.host);
+  g_targets.erase(it);
+  return false;
 }
 
 }  // namespace
@@ -93,21 +130,25 @@ GuestTexture *SvrResolveSurface(u32 surface_va) {
   if (auto *host = HostResourceHeap::FromGuest<GuestTexture>(surface_va))
     return host;
   std::lock_guard lock(g_mutex);
-  if (auto it = g_surfaces.find(surface_va); it != g_surfaces.end())
-    return it->second;
   const auto *surface = bd::mem::at<const D3DSurface>(surface_va);
   if (!surface)
     return nullptr;
   // Size packing as decoded by D3DSurface_GetDesc (see gpu/d3d.h).
   const u32 bits = surface->SizeBits;
+  const u32 format = surface->Format;
+  if (auto it = g_surfaces.find(surface_va); it != g_surfaces.end()) {
+    if (it->second.desc[0] == bits && it->second.desc[1] == format)
+      return it->second.host;
+    RetireHost(it->second.host);
+    g_surfaces.erase(it);
+  }
   const u32 width = (bits >> 18) + 1;
   const u32 height = ((bits >> 3) & 0x7FFF) + 1;
-  const u32 format = surface->Format;
   const u32 scale = SvrRenderScale();
   GuestTexture *host = SvrCreateHostSurface(width * scale, height * scale, format);
   BD_INFO("SvR surface 0x{:08X}: {}x{} format 0x{:08X} -> host {}", surface_va, width, height,
           format, host ? "ok" : "FAILED");
-  g_surfaces.emplace(surface_va, host);
+  g_surfaces.emplace(surface_va, HostTarget{host, {bits, format}});
   return host;
 }
 
@@ -117,11 +158,11 @@ GuestTexture *SvrResolveTarget(u32 texture_va) {
   if (auto *host = HostResourceHeap::FromGuest<GuestTexture>(texture_va))
     return host;
   std::lock_guard lock(g_mutex);
-  if (auto it = g_targets.find(texture_va); it != g_targets.end())
-    return it->second;
+  if (auto it = g_targets.find(texture_va); it != g_targets.end() && TargetCurrent(texture_va, it))
+    return it->second.host;
   rex::graphics::xenos::xe_gpu_texture_fetch_t fetch{};
   if (!ReadFetch(texture_va, fetch)) {
-    g_targets.emplace(texture_va, nullptr);
+    g_targets.emplace(texture_va, HostTarget{});
     return nullptr;
   }
   const u32 width = fetch.size_2d.width + 1;
@@ -134,7 +175,7 @@ GuestTexture *SvrResolveTarget(u32 texture_va) {
                                             0xC0000000u | u32(fetch.format), 0);
   BD_INFO("SvR target 0x{:08X}: {}x{} fmt {} levels {} -> host {}", texture_va, width, height,
           u32(fetch.format), levels, host ? "ok" : "FAILED");
-  g_targets.emplace(texture_va, host);
+  g_targets.emplace(texture_va, HostTarget{host, {fetch.dword_1, fetch.dword_2}});
   return host;
 }
 
@@ -251,8 +292,9 @@ GuestTexture *SvrResolveTexture(u32 texture_va) {
     return nullptr;
   const u64 frame = g_frame.load(std::memory_order_relaxed);
   std::lock_guard lock(g_mutex);
-  if (auto it = g_targets.find(texture_va); it != g_targets.end() && it->second)
-    return it->second;
+  if (auto it = g_targets.find(texture_va);
+      it != g_targets.end() && it->second.host && TargetCurrent(texture_va, it))
+    return it->second.host;
   MirrorCheck &check = g_mirror_checks[texture_va];
   if (check.frame == frame)
     return check.host;

@@ -41,3 +41,16 @@ registers = ["f13"]
 0x82769E30 = {}
 0x827680A8 = {}
 0x8273D87C = {}
+
+# Scene start (sub_824E2658) at its "drop to 30" call: r3 = game state, scene kind at +4076.
+# Road to WrestleMania cutscenes keep the 30 fps mode (fps_hooks.cpp).
+[[midasm_hook]]
+name = "SvrSceneKindHook"
+address = 0x824E2690
+registers = ["r3"]
+
+# "Back to 60 fps mode" (sub_82477260): logged.
+[[midasm_hook]]
+name = "SvrBackTo60Hook"
+address = 0x82477260
+registers = []
