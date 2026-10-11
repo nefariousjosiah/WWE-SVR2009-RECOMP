@@ -770,6 +770,54 @@ index 001f36b..3170efa 100644
    }
    // Write.
    if (write_descriptor_set_count) {
+diff --git a/src/input/input_system.cpp b/src/input/input_system.cpp
+index 813bb1c..4a2a70e 100644
+--- a/src/input/input_system.cpp
++++ b/src/input/input_system.cpp
+@@ -10,7 +10,11 @@
+  */
+ 
+ #include <algorithm>
++#include <atomic>
+ #include <cmath>
++#include <string>
++
++#include <fmt/format.h>
+ 
+ #include <rex/dbg.h>
+ #include <rex/input/device_assignment.h>
+@@ -164,6 +168,15 @@ void InputSystem::RefreshDevices() {
+   if (changed && assignment_) {
+     assignment_->OnDevicesChanged(devices_);
+   }
++  if (changed) {
++    std::string list;
++    for (const auto& device : devices_) {
++      list += fmt::format(" [id {:#x} {}{}]", static_cast<uint32_t>(device.id),
++                          device.synthetic ? "keyboard/synthetic" : "pad, player ",
++                          device.synthetic ? std::string() : std::to_string(device.ordinal + 1));
++    }
++    REXLOG_INFO("Input devices changed:{}", list.empty() ? " none" : list);
++  }
+ }
+ 
+ InputDriver* InputSystem::DriverForDevice(DeviceId id) {
+@@ -242,6 +255,15 @@ X_RESULT InputSystem::GetState(uint32_t user_index, X_INPUT_STATE* out_state) {
+     }
+   }
+ 
++  // What the game sees per player, logged when it changes: a pad that drops out and comes back
++  // shows here as disconnected / connected.
++  if (user_index < 4) {
++    static std::atomic<int> last[4] = {-1, -1, -1, -1};
++    const int now = any ? 1 : 0;
++    if (last[user_index].exchange(now) != now)
++      REXLOG_INFO("Input: player {} {} (game's view)", user_index + 1,
++                  any ? "connected" : "not connected");
++  }
+   if (!any) {
+     return X_ERROR_DEVICE_NOT_CONNECTED;
+   }
 diff --git a/src/kernel/xam/apps/xmp_app.cpp b/src/kernel/xam/apps/xmp_app.cpp
 index a5e9088..27a023d 100644
 --- a/src/kernel/xam/apps/xmp_app.cpp
@@ -837,6 +885,24 @@ index 1fb1e16..645c04a 100644
                disposition_ptr,
                license_mask_ptr](uint32_t& extended_error, uint32_t& length) -> X_RESULT {
      X_RESULT result = X_ERROR_INVALID_PARAMETER;
+diff --git a/src/system/kernel_state.cpp b/src/system/kernel_state.cpp
+index 697399c..79b6b07 100644
+--- a/src/system/kernel_state.cpp
++++ b/src/system/kernel_state.cpp
+@@ -1124,6 +1124,13 @@ void KernelState::BroadcastNotification(XNotificationID id, uint32_t data) {
+     auto global_lock = global_critical_region_.Acquire();
+     REXSYS_DEBUG("BroadcastNotification(id={:#x}, data={}) to {} listeners",
+                  static_cast<uint32_t>(id), data, notify_listeners_.size());
++    // System notifications that pause games or change who owns a controller (XN_SYS_UI 0x9,
++    // SIGNINCHANGED 0xA, INPUTDEVICESCHANGED 0x12, INPUTDEVICECONFIGCHANGED 0x13) go to the log:
++    // a game stuck paused with no input is usually waiting on one of them.
++    const uint32_t raw = static_cast<uint32_t>(id);
++    if (raw == 0x9 || raw == 0xA || raw == 0x12 || raw == 0x13)
++      REXSYS_INFO("XNotify: system notification {:#x} = {} ({} listeners)", raw, data,
++                  notify_listeners_.size());
+     snapshot = notify_listeners_;
+   }
+   for (const auto& notify_listener : snapshot) {
 diff --git a/src/system/runtime.cpp b/src/system/runtime.cpp
 index c10694c..ffdaddc 100644
 --- a/src/system/runtime.cpp

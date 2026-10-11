@@ -42,8 +42,9 @@ loading.
   by a native Vulkan renderer (adapted from [re:Blue](https://github.com/zolaware/reblue)) with
   the game's shaders recompiled ahead of time. No GPU emulation.
 - **60 fps** in menus and matches, using the game's own 60 fps mode so game speed stays right
-  (the original 30 fps is one setting away). Road to WrestleMania cutscenes play at 30 fps, as on
-  the console, so their captions stay in sync with the voices.
+  (the original 30 fps is one setting away). Road to WrestleMania cutscenes play at 60 fps too;
+  their captions then show a few seconds early, so **Cutscenes > 30 fps** in the settings menu
+  plays them as on the console, with the captions in sync.
 - **Up to 4K.** Internal resolution follows your screen: 1440p on 1080p and 1440p monitors, 4K on
   4K monitors, 720p on the Steam Deck. Or pick 720p / 1440p / 4K yourself. 16x anisotropic
   filtering.
@@ -201,6 +202,17 @@ Notes for the Deck:
 - **Controls:** the Deck's built-in controls work as an Xbox controller with Steam's default
   layout.
 - **Artwork:** Steam's library artwork for the shortcut can be set from its properties.
+
+## Known issues
+
+- **Road to WrestleMania captions at 60 fps:** cutscene captions are timed for 30 fps, so at 60
+  fps they appear a few seconds before the line is spoken. Set **Cutscenes** to **30 fps
+  (captions in sync)** in the settings menu if that bothers you.
+- **Road to WrestleMania: a match can start paused and not respond** to the controller or
+  keyboard (reported with an Xbox One controller). Workaround: save, close the game and start it
+  again. If it happens to you, please send `game.log` from the game's folder right afterwards in
+  [issue #3](https://github.com/nefariousjosiah/WWE-SVR2009-RECOMP/issues/3): since v0.5.1 it
+  records what the game sees from the controllers.
 
 ## Troubleshooting
 

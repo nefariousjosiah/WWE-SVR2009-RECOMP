@@ -65,7 +65,9 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
   void OnDraw(ImGuiIO& io) override {
     const Pad pad = ReadPad();
     if (!open_) {
-      if (hold_ && !pad.any)
+      // Released, or at most 1.5 s: a second XInput device (or a drifting stick) that never reads
+      // idle must not keep the game's input off.
+      if (hold_ && (!pad.any || Clock::now() >= hold_until_))
         hold_ = false;
       if (pad.combo && !last_.combo)
         Open();
@@ -86,6 +88,7 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
     kResolution,
     kDisplay,
     kFrameRate,
+    kCutscenes,
     kShape,
     kCounter,
     kSound,
@@ -116,6 +119,10 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
         {"Frame rate", {"60 fps", "30 fps (original)"},
          "60 fps uses the game's own 60 fps mode, so everything plays at the right speed. Takes "
          "effect from the next screen or match."},
+        {"Cutscenes", {"60 fps (captions early)", "30 fps (captions in sync)"},
+         "Road to WrestleMania cutscenes. At 60 fps they play smoother, but their captions appear a "
+         "few seconds before the line is spoken. 30 fps plays them as on the console, with the "
+         "captions in sync. From the next cutscene."},
         {"Screen shape", {"16:9 (correct)", "Stretch to fill"},
          "Matters on 16:10 screens like the Steam Deck: 16:9 keeps thin bars, stretch fills the "
          "screen."},
@@ -139,6 +146,7 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
     values_[kResolution] = std::clamp(std::atoi(Get("svr_render_scale").c_str()), 0, 3);
     values_[kDisplay] = hooks_.is_fullscreen && hooks_.is_fullscreen() ? 0 : 1;
     values_[kFrameRate] = Get("svr_60fps") == "true" ? 0 : 1;
+    values_[kCutscenes] = Get("svr_cutscene_30fps") == "true" ? 1 : 0;
     values_[kShape] = Get("bd_aspect_ratio") == "6" ? 1 : 0;
     values_[kCounter] = hooks_.fps_counter_on && hooks_.fps_counter_on() ? 0 : 1;
     values_[kSound] = Get("audio_mute") == "true" ? 1 : 0;
@@ -149,6 +157,7 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
   void Close() {
     open_ = false;
     hold_ = true;
+    hold_until_ = Clock::now() + std::chrono::milliseconds(1500);
   }
 
   static std::string Get(const char* name) { return rex::cvar::GetFlagByName(name); }
@@ -166,6 +175,9 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
         break;
       case kFrameRate:
         Set("svr_60fps", v == 0 ? "true" : "false");
+        break;
+      case kCutscenes:
+        Set("svr_cutscene_30fps", v == 1 ? "true" : "false");
         break;
       case kShape:
         Set("bd_aspect_ratio", v == 1 ? "6" : "5");
@@ -546,7 +558,7 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
   Hooks hooks_;
   bool open_ = false, hold_ = false;
   bool confirm_update_ = false, restart_failed_ = false, notice_shown_ = false;
-  Clock::time_point notice_until_;
+  Clock::time_point notice_until_, hold_until_;
   int selected_ = 0;
   int values_[kRows] = {};
   Pad last_;

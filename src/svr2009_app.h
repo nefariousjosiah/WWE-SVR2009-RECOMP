@@ -114,9 +114,17 @@ class Svr2009App : public rex::ReXApp {
     // overlay). Set here: the runtime (and ReXApp's own callback) exists only from now on.
     if (auto* input = static_cast<rex::input::InputSystem*>(runtime()->input_system())) {
       input->SetActiveCallback([this] {
-        if (settings_menu_ && settings_menu_->BlocksGameInput())
-          return false;
-        return !(imgui_drawer_ && imgui_drawer_->GetIO().WantCaptureMouse);
+        // 0 = game gets input, 1 = settings menu, 2 = mouse over an overlay. Changes are logged:
+        // a game that stops reacting shows here whether it was this gate.
+        const int blocked = settings_menu_ && settings_menu_->BlocksGameInput()        ? 1
+                            : imgui_drawer_ && imgui_drawer_->GetIO().WantCaptureMouse ? 2
+                                                                                        : 0;
+        static std::atomic<int> last{0};
+        if (last.exchange(blocked) != blocked)
+          REXLOG_INFO("Input: game input {}", blocked == 0   ? "on"
+                                              : blocked == 1 ? "off (settings menu)"
+                                                             : "off (mouse over an overlay)");
+        return blocked == 0;
       });
     }
     // Updates (settings menu > Update): a check at startup, installed only when the player says.

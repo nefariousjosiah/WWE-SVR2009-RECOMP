@@ -57,11 +57,12 @@ void SvrSetFrameRateHook(PPCRegister& r3) {
 
 // Scenes ask for the 30 fps mode from sub_824E2658, which reads the scene kind from the game state
 // (+4076: 4 menus, which go back to 60; 7 a match; 8 a Road to WrestleMania cutscene). Cutscene
-// captions are timed in 30 fps frames, so at 60 they ran 3-5 s ahead of the voices: cutscenes keep
-// the game's own 30 fps mode, as on the console, and the game returns to 60 when they end.
-REXCVAR_DEFINE_BOOL(svr_cutscene_30fps, true, "Game",
-                    "Road to WrestleMania cutscenes keep the game's 30 fps mode (their captions are "
-                    "timed in 30 fps frames)");
+// captions are timed in 30 fps frames, so at 60 they show 3-5 s ahead of the voices. Players choose
+// (settings menu > Cutscenes): 60 fps (the default) or the game's own 30 fps mode, as on the
+// console, which keeps the captions in sync; the game returns to 60 when a cutscene ends.
+REXCVAR_DEFINE_BOOL(svr_cutscene_30fps, false, "Game",
+                    "Road to WrestleMania cutscenes keep the game's 30 fps mode, so their captions "
+                    "(timed in 30 fps frames) line up with the voices; at 60 fps they show early");
 
 constexpr uint32_t kSceneKindCutscene = 8;
 static std::atomic<uint32_t> g_scene_kind{0};
