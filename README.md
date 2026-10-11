@@ -66,7 +66,9 @@ loading.
 - **DLC:** if you own SvR 2009's downloadable content, drop your own package files into the `dlc`
   folder and the new superstars are in the game (see [DLC](#dlc-optional)).
 - **Controllers** (Xbox, PlayStation, Switch Pro, the Deck's controls) through SDL. Keyboard controls
-  are included but not tested yet, so a controller is recommended.
+  are included but not tested yet, so a controller is recommended. By default every controller
+  controls player 1; for **local multiplayer**, set **Controllers** to **Separate players** in the
+  settings menu.
 
 ## What you need
 
@@ -92,8 +94,8 @@ Good to know:
 
 - **Settings:** press **F1** in game (or **Back + Start** on a controller, **Share + Options** on PlayStation) for the settings menu:
   resolution (Auto, 720p, 1440p, 4K), fullscreen or window, 60 or 30 fps, screen shape, FPS
-  counter, sound, keyboard controls and **Controllers** (separate players, or every controller on
-  player 1). They are saved in `svr2009.toml`.
+  counter, sound, keyboard controls and **Controllers** (every controller on player 1 by default;
+  choose **Separate players** for local multiplayer). They are saved in `svr2009.toml`.
 - **"Windows protected your PC"**: the program isn't code-signed. Click *More info* and then
   *Run anyway*.
 - **Quitting:** close the game window (Alt+F4 or the close button).
@@ -209,14 +211,12 @@ Notes for the Deck:
 - **Road to WrestleMania captions at 60 fps:** cutscene captions are timed for 30 fps, so at 60
   fps they appear a few seconds before the line is spoken. Set **Cutscenes** to **30 fps
   (captions in sync)** in the settings menu if that bothers you.
-- **Road to WrestleMania: a match can start paused and not respond** to the controller or
-  keyboard (reported with an Xbox One controller). Try this first: open the settings menu and set
-  **Controllers** to **All on player 1**, so a controller that reconnects, or shows up twice
-  (Steam Input, DS4Windows, DSX), can't become a player 2 the game waits for. Otherwise: save,
-  close the game and start it again. If it still happens, please send `game.log` from the game's
-  folder right afterwards in
-  [issue #3](https://github.com/nefariousjosiah/WWE-SVR2009-RECOMP/issues/3): it records what the
-  game sees from the controllers.
+- **Local multiplayer:** set **Controllers** to **Separate players** in the settings menu first
+  (by default every controller is player 1). With Separate players, if a controller shows up twice
+  (Steam Input, DS4Windows, DSX) and the copy drops out, the game pauses for player 2 ("2P
+  paused") until it comes back: close or turn off the app making the copy. Problems? Send
+  `game.log` from the game's folder in
+  [issue #3](https://github.com/nefariousjosiah/WWE-SVR2009-RECOMP/issues/3).
 
 ## Troubleshooting
 

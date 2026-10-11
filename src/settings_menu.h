@@ -137,9 +137,9 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
          "The keyboard works as a controller (rebind keys with F4). Not tested yet: a controller is "
          "recommended."},
         {"Controllers", {"Separate players", "All on player 1"},
-         "Separate players: each controller is its own player, for local multiplayer. All on "
-         "player 1: every controller controls player 1. If your controller stops responding "
-         "(Road to WrestleMania stuck paused), choose this."},
+         "All on player 1 (default): every controller controls player 1, so a controller that "
+         "drops out or shows up twice (Steam Input, DS4Windows) can't leave the game paused for "
+         "a player 2. Separate players: each controller is its own player, for local multiplayer."},
         {"Check for updates", {"At startup", "Off"},
          "At startup the game asks GitHub whether a newer version of this port is out. Nothing is "
          "downloaded unless you choose Update."},
