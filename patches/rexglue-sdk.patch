@@ -164,6 +164,29 @@ index 696ff48..17412e9 100644
  
    std::unique_ptr<ui::vulkan::VulkanUploadBufferPool> uniform_buffer_pool_;
  
+diff --git a/include/rex/input/input_system.h b/include/rex/input/input_system.h
+index 1cb3faa..f188cde 100644
+--- a/include/rex/input/input_system.h
++++ b/include/rex/input/input_system.h
+@@ -11,6 +11,7 @@
+  */
+ 
+ #include <memory>
++#include <mutex>
+ #include <vector>
+ 
+ #include <rex/input/device_assignment.h>
+@@ -56,6 +57,10 @@ class InputSystem : public system::IInputSystem {
+ 
+   rex::ui::Window* window_ = nullptr;
+ 
++  // Guest threads and the UI thread (overlay menus reading the pad) both query devices, and every
++  // query re-enumerates them.
++  std::recursive_mutex mutex_;
++
+   std::vector<std::unique_ptr<InputDriver>> drivers_;
+ 
+   std::unique_ptr<DeviceAssignment> assignment_;
 diff --git a/include/rex/ui/d3d12/d3d12_util.h b/include/rex/ui/d3d12/d3d12_util.h
 index 364690d..0b88d80 100644
 --- a/include/rex/ui/d3d12/d3d12_util.h
@@ -771,7 +794,7 @@ index 001f36b..3170efa 100644
    // Write.
    if (write_descriptor_set_count) {
 diff --git a/src/input/input_system.cpp b/src/input/input_system.cpp
-index 813bb1c..4a2a70e 100644
+index 813bb1c..02f16e4 100644
 --- a/src/input/input_system.cpp
 +++ b/src/input/input_system.cpp
 @@ -10,7 +10,11 @@
@@ -786,7 +809,15 @@ index 813bb1c..4a2a70e 100644
  
  #include <rex/dbg.h>
  #include <rex/input/device_assignment.h>
-@@ -164,6 +168,15 @@ void InputSystem::RefreshDevices() {
+@@ -79,6 +83,7 @@ void InputSystem::SetDeviceAssignment(std::unique_ptr<DeviceAssignment> assignme
+ }
+ 
+ void InputSystem::RefreshDevices() {
++  std::lock_guard lock(mutex_);
+   std::vector<DeviceInfo> seen;
+   std::vector<InputDriver*> owners;
+   std::vector<DeviceInfo> enumerated;
+@@ -164,6 +169,15 @@ void InputSystem::RefreshDevices() {
    if (changed && assignment_) {
      assignment_->OnDevicesChanged(devices_);
    }
@@ -802,7 +833,23 @@ index 813bb1c..4a2a70e 100644
  }
  
  InputDriver* InputSystem::DriverForDevice(DeviceId id) {
-@@ -242,6 +255,15 @@ X_RESULT InputSystem::GetState(uint32_t user_index, X_INPUT_STATE* out_state) {
+@@ -187,6 +201,7 @@ const DeviceInfo* InputSystem::DeviceInfoFor(DeviceId id) const {
+ X_RESULT InputSystem::GetCapabilities(uint32_t user_index, uint32_t flags,
+                                       X_INPUT_CAPABILITIES* out_caps) {
+   SCOPE_profile_cpu_f("hid");
++  std::lock_guard lock(mutex_);
+   if (!out_caps || !assignment_) {
+     return X_ERROR_DEVICE_NOT_CONNECTED;
+   }
+@@ -214,6 +229,7 @@ X_RESULT InputSystem::GetCapabilities(uint32_t user_index, uint32_t flags,
+ 
+ X_RESULT InputSystem::GetState(uint32_t user_index, X_INPUT_STATE* out_state) {
+   SCOPE_profile_cpu_f("hid");
++  std::lock_guard lock(mutex_);
+   if (!assignment_) {
+     return X_ERROR_DEVICE_NOT_CONNECTED;
+   }
+@@ -242,6 +258,15 @@ X_RESULT InputSystem::GetState(uint32_t user_index, X_INPUT_STATE* out_state) {
      }
    }
  
@@ -816,6 +863,22 @@ index 813bb1c..4a2a70e 100644
 +                  any ? "connected" : "not connected");
 +  }
    if (!any) {
+     return X_ERROR_DEVICE_NOT_CONNECTED;
+   }
+@@ -253,6 +278,7 @@ X_RESULT InputSystem::GetState(uint32_t user_index, X_INPUT_STATE* out_state) {
+ 
+ X_RESULT InputSystem::SetState(uint32_t user_index, X_INPUT_VIBRATION* vibration) {
+   SCOPE_profile_cpu_f("hid");
++  std::lock_guard lock(mutex_);
+   if (!assignment_) {
+     return X_ERROR_DEVICE_NOT_CONNECTED;
+   }
+@@ -295,6 +321,7 @@ X_RESULT InputSystem::SetState(uint32_t user_index, X_INPUT_VIBRATION* vibration
+ X_RESULT InputSystem::GetKeystroke(uint32_t user_index, uint32_t flags,
+                                    X_INPUT_KEYSTROKE* out_keystroke) {
+   SCOPE_profile_cpu_f("hid");
++  std::lock_guard lock(mutex_);
+   if (!assignment_) {
      return X_ERROR_DEVICE_NOT_CONNECTED;
    }
 diff --git a/src/kernel/xam/apps/xmp_app.cpp b/src/kernel/xam/apps/xmp_app.cpp

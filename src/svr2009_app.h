@@ -38,6 +38,10 @@ REXCVAR_DECLARE(bool, svr_check_updates);
 
 inline constexpr const char* kWindowTitle = "WWE SmackDown vs. Raw 2009";
 
+// Set while the settings menu reads the pad through the game's input system (UI thread only), so
+// the input gate lets that read through.
+inline thread_local bool t_overlay_reads_pad = false;
+
 class Svr2009App : public rex::ReXApp {
  public:
   using rex::ReXApp::ReXApp;
@@ -114,6 +118,9 @@ class Svr2009App : public rex::ReXApp {
     // overlay). Set here: the runtime (and ReXApp's own callback) exists only from now on.
     if (auto* input = static_cast<rex::input::InputSystem*>(runtime()->input_system())) {
       input->SetActiveCallback([this] {
+        // The settings menu reading the pad (hooks.read_pad) sees it even while the game can't.
+        if (t_overlay_reads_pad)
+          return true;
         // 0 = game gets input, 1 = settings menu, 2 = mouse over an overlay. Changes are logged:
         // a game that stops reacting shows here whether it was this gate.
         const int blocked = settings_menu_ && settings_menu_->BlocksGameInput()        ? 1
@@ -194,6 +201,28 @@ class Svr2009App : public rex::ReXApp {
         fps_counter_ = std::make_unique<FpsCounterDialog>(imgui_drawer_);
       else if (!on)
         fps_counter_.reset();
+    };
+    hooks.read_pad = [this](uint16_t& buttons, int16_t& lx, int16_t& ly) {
+      auto* input = runtime() ? static_cast<rex::input::InputSystem*>(runtime()->input_system())
+                              : nullptr;
+      if (!input)
+        return false;
+      bool any = false;
+      t_overlay_reads_pad = true;
+      for (uint32_t user = 0; user < 4; ++user) {
+        rex::input::X_INPUT_STATE state{};
+        if (input->GetState(user, &state) != 0)  // X_ERROR_SUCCESS
+          continue;
+        any = true;
+        buttons |= uint16_t(state.gamepad.buttons);
+        const int16_t x = state.gamepad.thumb_lx, y = state.gamepad.thumb_ly;
+        if (std::abs(x) > std::abs(lx))
+          lx = x;
+        if (std::abs(y) > std::abs(ly))
+          ly = y;
+      }
+      t_overlay_reads_pad = false;
+      return any;
     };
     hooks.updater = [this] { return updater_.get(); };
     hooks.quit = [this] { app_context().QuitFromUIThread(); };

@@ -41,6 +41,9 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
     std::function<void(bool)> set_fps_counter;
     std::function<svr::Updater*()> updater;  // nullptr until the game has started
     std::function<void()> quit;               // after the updater started the new version
+    // Every controller the game sees (SDL: PlayStation, Switch, Xbox...), in XInput button bits,
+    // read even while the game's own input is off. XInput alone only sees Xbox-style pads.
+    std::function<bool(uint16_t& buttons, int16_t& lx, int16_t& ly)> read_pad;
   };
 
   SettingsMenuDialog(rex::ui::ImGuiDrawer* drawer, std::string title, std::filesystem::path toml,
@@ -366,27 +369,36 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
     Apply(selected_);
   }
 
-  // Controller state from XInput (also what Proton exposes on the Steam Deck).
+  // Controller state from the game's own input (every pad SDL sees: PlayStation, Switch, Xbox),
+  // and from XInput (also what Proton exposes on the Steam Deck).
   Pad ReadPad() {
     Pad p;
-#if defined(_WIN32)
-    if (!xinput_get_state_)
-      return p;
-    for (DWORD i = 0; i < 4; ++i) {
-      XINPUT_STATE st{};
-      if (xinput_get_state_(i, &st) != ERROR_SUCCESS)
-        continue;
-      const WORD b = st.Gamepad.wButtons;
-      const SHORT ly = st.Gamepad.sThumbLY, lx = st.Gamepad.sThumbLX;
-      constexpr SHORT kDead = 16000;
-      p.up |= (b & XINPUT_GAMEPAD_DPAD_UP) || ly > kDead;
-      p.down |= (b & XINPUT_GAMEPAD_DPAD_DOWN) || ly < -kDead;
-      p.left |= (b & XINPUT_GAMEPAD_DPAD_LEFT) || lx < -kDead;
-      p.right |= (b & XINPUT_GAMEPAD_DPAD_RIGHT) || lx > kDead;
-      p.a |= (b & XINPUT_GAMEPAD_A) != 0;
-      p.b |= (b & XINPUT_GAMEPAD_B) != 0;
-      p.combo |= (b & XINPUT_GAMEPAD_BACK) && (b & XINPUT_GAMEPAD_START);
+    constexpr int kDead = 16000;
+    auto add = [&p](uint16_t b, int lx, int ly) {
+      // XInput's button bits: DPAD up/down/left/right 0x1/0x2/0x4/0x8, START 0x10, BACK 0x20,
+      // A 0x1000, B 0x2000.
+      p.up |= (b & 0x0001) || ly > kDead;
+      p.down |= (b & 0x0002) || ly < -kDead;
+      p.left |= (b & 0x0004) || lx < -kDead;
+      p.right |= (b & 0x0008) || lx > kDead;
+      p.a |= (b & 0x1000) != 0;
+      p.b |= (b & 0x2000) != 0;
+      p.combo |= (b & 0x0020) && (b & 0x0010);
       p.any |= b != 0 || ly > kDead || ly < -kDead || lx > kDead || lx < -kDead;
+    };
+    if (hooks_.read_pad) {
+      uint16_t b = 0;
+      int16_t lx = 0, ly = 0;
+      if (hooks_.read_pad(b, lx, ly))
+        add(b, lx, ly);
+    }
+#if defined(_WIN32)
+    if (xinput_get_state_) {
+      for (DWORD i = 0; i < 4; ++i) {
+        XINPUT_STATE st{};
+        if (xinput_get_state_(i, &st) == ERROR_SUCCESS)
+          add(st.Gamepad.wButtons, st.Gamepad.sThumbLX, st.Gamepad.sThumbLY);
+      }
     }
 #endif
     return p;
