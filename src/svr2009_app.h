@@ -31,6 +31,7 @@
 REXCVAR_DECLARE(std::string, gpu_backend);
 REXCVAR_DECLARE(bool, svr_fps_counter);
 REXCVAR_DECLARE(bool, svr_check_updates);
+REXCVAR_DECLARE(bool, svr_controllers_shared);
 
 #ifndef SVR_VERSION
 #define SVR_VERSION "dev"  // set by CMakeLists.txt (project VERSION)
@@ -134,6 +135,7 @@ class Svr2009App : public rex::ReXApp {
         return blocked == 0;
       });
     }
+    SetControllersShared(REXCVAR_GET(svr_controllers_shared));
     // Updates (settings menu > Update): a check at startup, installed only when the player says.
     svr::Updater::Config update;
     update.repo = "nefariousjosiah/WWE-SVR2009-RECOMP";
@@ -147,6 +149,21 @@ class Svr2009App : public rex::ReXApp {
     if (REXCVAR_GET(svr_check_updates))
       updater_->StartCheck();
   }
+  // Separate players: controller N is player N (the SDK default). Shared: every controller is
+  // player 1 and players 2-4 read as not connected, so a controller that reconnects, or shows up
+  // twice (Steam Input, DS4Windows...), never ends up as a player 2 the game waits for.
+  void SetControllersShared(bool shared) {
+    auto* input = runtime() ? static_cast<rex::input::InputSystem*>(runtime()->input_system())
+                            : nullptr;
+    if (!input)
+      return;
+    if (shared)
+      input->SetDeviceAssignment(std::make_unique<rex::input::SharedAssignment>());
+    else
+      input->SetDeviceAssignment(std::make_unique<rex::input::SlotAssignment>());
+    REXLOG_INFO("Input: controllers {}", shared ? "all on player 1" : "separate players");
+  }
+
   void OnShutdown() override {
     rex::ui::UnregisterBind("bind_fps_counter");
     rex::ui::UnregisterBind("bind_svr_settings");
@@ -224,6 +241,7 @@ class Svr2009App : public rex::ReXApp {
       t_overlay_reads_pad = false;
       return any;
     };
+    hooks.set_controllers_shared = [this](bool on) { SetControllersShared(on); };
     hooks.updater = [this] { return updater_.get(); };
     hooks.quit = [this] { app_context().QuitFromUIThread(); };
     settings_menu_ = std::make_unique<SettingsMenuDialog>(

@@ -44,6 +44,7 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
     // Every controller the game sees (SDL: PlayStation, Switch, Xbox...), in XInput button bits,
     // read even while the game's own input is off. XInput alone only sees Xbox-style pads.
     std::function<bool(uint16_t& buttons, int16_t& lx, int16_t& ly)> read_pad;
+    std::function<void(bool)> set_controllers_shared;  // true: every controller is player 1
   };
 
   SettingsMenuDialog(rex::ui::ImGuiDrawer* drawer, std::string title, std::filesystem::path toml,
@@ -96,6 +97,7 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
     kCounter,
     kSound,
     kKeyboard,
+    kControllers,
     kCheckUpdates,
     kUpdate,
     kClose,
@@ -134,6 +136,10 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
         {"Keyboard controls", {"On", "Off"},
          "The keyboard works as a controller (rebind keys with F4). Not tested yet: a controller is "
          "recommended."},
+        {"Controllers", {"Separate players", "All on player 1"},
+         "Separate players: each controller is its own player, for local multiplayer. All on "
+         "player 1: every controller controls player 1. If your controller stops responding "
+         "(Road to WrestleMania stuck paused), choose this."},
         {"Check for updates", {"At startup", "Off"},
          "At startup the game asks GitHub whether a newer version of this port is out. Nothing is "
          "downloaded unless you choose Update."},
@@ -154,6 +160,7 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
     values_[kCounter] = hooks_.fps_counter_on && hooks_.fps_counter_on() ? 0 : 1;
     values_[kSound] = Get("audio_mute") == "true" ? 1 : 0;
     values_[kKeyboard] = Get("mnk_mode") == "true" ? 0 : 1;
+    values_[kControllers] = Get("svr_controllers_shared") == "true" ? 1 : 0;
     values_[kCheckUpdates] = Get("svr_check_updates") == "false" ? 1 : 0;
     confirm_update_ = false;
   }
@@ -195,6 +202,11 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
         break;
       case kKeyboard:
         Set("mnk_mode", v == 0 ? "true" : "false");
+        break;
+      case kControllers:
+        Set("svr_controllers_shared", v == 1 ? "true" : "false");
+        if (hooks_.set_controllers_shared)
+          hooks_.set_controllers_shared(v == 1);
         break;
       case kCheckUpdates:
         Set("svr_check_updates", v == 0 ? "true" : "false");

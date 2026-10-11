@@ -52,8 +52,8 @@ loading.
   smeared hair, tattoos, ropes and the crowd) is off; the higher internal resolution smooths edges
   instead. `svr_edge_blur = true` in `svr2009.toml` brings the original look back.
 - **In-game settings menu:** F1, or Back + Start on a controller (Share + Options on PlayStation): resolution, fullscreen or
-  window, 60 or 30 fps, screen shape, FPS counter, sound and keyboard controls. Saved for next
-  time.
+  window, 60 or 30 fps, screen shape, FPS counter, sound, keyboard controls and how controllers
+  map to players. Saved for next time.
 - **Updates in the game, when you want them:** a new version is announced at startup and installed
   from the settings menu only if you choose to. Your saves are kept and backed up first (see
   [Updating](#updating)).
@@ -92,7 +92,8 @@ Good to know:
 
 - **Settings:** press **F1** in game (or **Back + Start** on a controller, **Share + Options** on PlayStation) for the settings menu:
   resolution (Auto, 720p, 1440p, 4K), fullscreen or window, 60 or 30 fps, screen shape, FPS
-  counter, sound and keyboard controls. They are saved in `svr2009.toml`.
+  counter, sound, keyboard controls and **Controllers** (separate players, or every controller on
+  player 1). They are saved in `svr2009.toml`.
 - **"Windows protected your PC"**: the program isn't code-signed. Click *More info* and then
   *Run anyway*.
 - **Quitting:** close the game window (Alt+F4 or the close button).
@@ -209,10 +210,13 @@ Notes for the Deck:
   fps they appear a few seconds before the line is spoken. Set **Cutscenes** to **30 fps
   (captions in sync)** in the settings menu if that bothers you.
 - **Road to WrestleMania: a match can start paused and not respond** to the controller or
-  keyboard (reported with an Xbox One controller). Workaround: save, close the game and start it
-  again. If it happens to you, please send `game.log` from the game's folder right afterwards in
-  [issue #3](https://github.com/nefariousjosiah/WWE-SVR2009-RECOMP/issues/3): since v0.5.1 it
-  records what the game sees from the controllers.
+  keyboard (reported with an Xbox One controller). Try this first: open the settings menu and set
+  **Controllers** to **All on player 1**, so a controller that reconnects, or shows up twice
+  (Steam Input, DS4Windows, DSX), can't become a player 2 the game waits for. Otherwise: save,
+  close the game and start it again. If it still happens, please send `game.log` from the game's
+  folder right afterwards in
+  [issue #3](https://github.com/nefariousjosiah/WWE-SVR2009-RECOMP/issues/3): it records what the
+  game sees from the controllers.
 
 ## Troubleshooting
 
