@@ -29,6 +29,9 @@ void SvrOnFrame();
 // svr_render_scale (0 = from the window height: 2 at 1440p, 3 at 4K, 1 at 720p/800p). Fixed for
 // the session once the first render target exists.
 u32 SvrRenderScale();
+// What svr_render_scale = 0 (Auto) picks on this PC: 1 on Steam Deck and built-in graphics,
+// otherwise from the screen (2 at 1080p/1440p, 3 at 4K). Shown by the settings menu.
+u32 SvrAutoRenderScale();
 // Frames presented so far, plus 1 (never 0); per-frame mirror checks compare against it.
 u64 SvrFrameIndex();
 

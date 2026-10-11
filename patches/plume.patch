@@ -29,3 +29,17 @@ index 1cbc506..1721b5c 100644
      target_include_directories(plume PUBLIC
          ${CMAKE_CURRENT_SOURCE_DIR}/contrib/D3D12MemoryAllocator/include
      )
+diff --git a/plume_d3d12.cpp b/plume_d3d12.cpp
+index dcae4e3..2dba3af 100644
+--- a/plume_d3d12.cpp
++++ b/plume_d3d12.cpp
+@@ -484,7 +484,8 @@ namespace plume {
+         case RenderHeapType::READBACK:
+             return D3D12_HEAP_TYPE_READBACK;
+         case RenderHeapType::GPU_UPLOAD:
+-            return D3D12_HEAP_TYPE_GPU_UPLOAD;
++            // D3D12_HEAP_TYPE_GPU_UPLOAD, by value: the constant needs Windows SDK 10.0.26100+ headers.
++            return static_cast<D3D12_HEAP_TYPE>(5);
+         default:
+             assert(false && "Unknown heap type.");
+             return D3D12_HEAP_TYPE_DEFAULT;

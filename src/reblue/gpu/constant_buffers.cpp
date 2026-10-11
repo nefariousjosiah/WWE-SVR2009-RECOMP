@@ -14,6 +14,7 @@
 #include <vector>
 
 #include <plume_render_interface_builders.h>
+#include <rex/graphics/xenos.h>
 #include <rex/runtime.h>
 #include <rex/types.h>
 
@@ -61,15 +62,37 @@ struct FrameUpload {
 };
 
 // DecodeFromFetch + ResolveSlotLocked (mutex + hash lookup) run per bound slot
-// on EVERY draw, and the fetch constants almost never change between draws, so
-// a 24-byte compare replaces them on the hot path. Sampler heap slots are never
-// reclaimed, so a cached index stays valid until device teardown.
+// on EVERY draw, so the slot remembers the sampler it resolved for the fetch
+// constant's sampler fields. Keyed on just those fields (DecodeFromFetch reads
+// nothing else): the full constant also holds the texture's address and size,
+// which change with every texture (a crowd frame binds hundreds) while the
+// sampler state stays the same. Sampler heap slots are never reclaimed, so a
+// cached index stays valid until device teardown.
 struct SamplerSlotCache {
-  u8 fc[sizeof(DeviceFetchConstant)]{};
+  u32 key = 0;
   u32 sampler = 0;
   i32 aniso = -1;
   bool clamp3d = false;
   bool valid = false;
+};
+
+// The fetch constant fields DecodeFromFetch reads, packed.
+u32 SamplerFieldsKey(const u32 fc[6]) {
+  rex::graphics::xenos::xe_gpu_texture_fetch_t f;
+  std::memcpy(&f, fc, sizeof(f));
+  return u32(f.clamp_x) | u32(f.clamp_y) << 3 | u32(f.clamp_z) << 6 |
+         u32(f.mag_filter) << 9 | u32(f.min_filter) << 11 |
+         u32(f.mip_filter) << 13 | u32(f.border_color) << 15;
+}
+
+// The last vertex/pixel constant block uploaded on this command list, as the
+// guest stored it. SvR uploads both blocks every draw (inline constant writes
+// have no hook), but consecutive draws mostly share one or both, so an
+// unchanged block keeps the binding it has instead of another 4 KiB copy.
+struct StageConstantCache {
+  alignas(64) u8 raw[256 * 16];
+  bool valid = false;
+  bool pinned = false;
 };
 
 struct UploadState {
@@ -79,6 +102,7 @@ struct UploadState {
   SharedConstants shared{};
   SharedConstants lastUploaded{};
   SamplerSlotCache samplerSlots[kTextureSlots];
+  StageConstantCache vsConstants, psConstants;
   float shadowPcfScale = 1.0f;
   bool sharedBound = false;
   bool ready = false;
@@ -248,7 +272,12 @@ void ResetFrame(u32 slot) {
   RecomputeShadowPcfScale(s);
 }
 
-void InvalidateSharedBinding() { upload_state().sharedBound = false; }
+void InvalidateSharedBinding() {
+  auto &s = upload_state();
+  s.sharedBound = false;
+  s.vsConstants.valid = false;
+  s.psConstants.valid = false;
+}
 
 // c50.xy is BD's NDC->UV half-scale (0.5 on hw). bd_blur_ps reconstructs its
 // sample UV as uv = c50.xy*(ndc+1), so it MUST be 0.5. The guest derives it
@@ -271,17 +300,46 @@ void PinScreenUVScaleReg(u8 *block) {
   }
 }
 
+namespace {
+// True when the guest block equals the last one uploaded on this command list
+// (the caller keeps that binding); otherwise remembers it for next time.
+// (The D3D runtime's own dirty masks, m_Mask[0]/[1], can't replace this compare: over a match
+// about 1.3% of draws had new constants with the mask clean.)
+bool SameAsLastUpload(StageConstantCache &cache, u32 guest_va, bool pinned) {
+  const auto *src = bd::mem::at<const u8>(guest_va);
+  if (!src) {
+    cache.valid = false;
+    return false;
+  }
+  if (cache.valid && cache.pinned == pinned &&
+      std::memcmp(cache.raw, src, kConstantBlockBytes) == 0)
+    return true;
+  std::memcpy(cache.raw, src, kConstantBlockBytes);
+  cache.pinned = pinned;
+  cache.valid = true;
+  return false;
+}
+
+bool PinsScreenUVScale() {
+  auto *ps = bd::gpu::state().pipelineState.pixelShader;
+  return ps && ps->shaderCacheEntry && ps->shaderCacheEntry->hash == kBDBlurPSHash;
+}
+}  // namespace
+
 ConstantAllocation UploadVertexShaderConstants(u32 device_guest) {
   BD_CPU_ZONE("UploadVSConstants");
   auto &s = upload_state();
   if (!device_guest)
     return {};
-  auto alloc = Allocate(s, kConstantBlockBytes, kCBVAlignment);
-  if (!alloc.memory)
+  const u32 va = device_guest + offsetof(D3DDevice, vsFloatConstants);
+  if (SameAsLastUpload(s.vsConstants, va, false))
     return {};
-  CopyByteSwap32FlushNaN(alloc.memory,
-                         device_guest + offsetof(D3DDevice, vsFloatConstants),
-                         kConstantBlockBytes);
+  auto alloc = Allocate(s, kConstantBlockBytes, kCBVAlignment);
+  if (!alloc.memory) {
+    s.vsConstants.valid = false;
+    return {};
+  }
+  CopyByteSwap32FlushNaN(alloc.memory, va, kConstantBlockBytes);
   return alloc;
 }
 
@@ -290,12 +348,15 @@ ConstantAllocation UploadPixelShaderConstants(u32 device_guest) {
   auto &s = upload_state();
   if (!device_guest)
     return {};
-  auto alloc = Allocate(s, kConstantBlockBytes, kCBVAlignment);
-  if (!alloc.memory)
+  const u32 va = device_guest + offsetof(D3DDevice, psFloatConstants);
+  if (SameAsLastUpload(s.psConstants, va, PinsScreenUVScale()))
     return {};
-  CopyByteSwap32FlushNaN(alloc.memory,
-                         device_guest + offsetof(D3DDevice, psFloatConstants),
-                         kConstantBlockBytes);
+  auto alloc = Allocate(s, kConstantBlockBytes, kCBVAlignment);
+  if (!alloc.memory) {
+    s.psConstants.valid = false;
+    return {};
+  }
+  CopyByteSwap32FlushNaN(alloc.memory, va, kConstantBlockBytes);
   PinScreenUVScaleReg(alloc.memory);
   return alloc;
 }
@@ -389,14 +450,15 @@ ConstantAllocation UploadSharedConstants(u32 device_guest) {
         const bool clamp3d =
             tex->viewDimension == plume::RenderTextureViewDimension::TEXTURE_3D;
         auto &sc = s.samplerSlots[i];
+        const u32 fc[6] = {
+            u32(fc_be.dword[0]), u32(fc_be.dword[1]), u32(fc_be.dword[2]),
+            u32(fc_be.dword[3]), u32(fc_be.dword[4]), u32(fc_be.dword[5]),
+        };
+        const u32 key = SamplerFieldsKey(fc);
         if (sc.valid && sc.clamp3d == clamp3d && sc.aniso == aniso_now &&
-            std::memcmp(sc.fc, &fc_be, sizeof(sc.fc)) == 0) {
+            sc.key == key) {
           SamplerIndex(s.shared, i) = sc.sampler;
         } else {
-          const u32 fc[6] = {
-              u32(fc_be.dword[0]), u32(fc_be.dword[1]), u32(fc_be.dword[2]),
-              u32(fc_be.dword[3]), u32(fc_be.dword[4]), u32(fc_be.dword[5]),
-          };
           auto desc = DecodeFromFetch(fc);
 
           // Shell fur volumes encode shell depth in W, and X360-default WRAP
@@ -406,7 +468,7 @@ ConstantAllocation UploadSharedConstants(u32 device_guest) {
             desc.addressW = plume::RenderTextureAddressMode::CLAMP;
           }
           const u32 resolved = ResolveSlotLocked(desc);
-          std::memcpy(sc.fc, &fc_be, sizeof(sc.fc));
+          sc.key = key;
           sc.sampler = resolved;
           sc.aniso = aniso_now;
           sc.clamp3d = clamp3d;

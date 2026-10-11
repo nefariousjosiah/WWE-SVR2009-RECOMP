@@ -8,6 +8,10 @@
  * @license   BSD 3-Clause License
  *            See LICENSE file in the project root for full license text.
  */
+#if defined(SVR_NATIVE_RENDERER)
+#include "svr_command_stream.h"
+#include "svr_frame_diag.h"
+#endif
 #include "gpu/frame.h"
 
 #include <atomic>
@@ -41,7 +45,11 @@ void BeginCommandList(VideoState &s) {
   if (!s.pipeline_layout)
     return;
   const u32 cur = s.frame.load(std::memory_order_relaxed);
+#if defined(SVR_NATIVE_RENDERER)
+  s.command_list = SvrRecordingList(cur, s.command_lists[cur].get());
+#else
   s.command_list = s.command_lists[cur].get();
+#endif
   s.draw_framebuffer_bound = false;
   s.last_resolved_dst = nullptr;
   s.command_list->begin();
@@ -222,9 +230,18 @@ void AdvanceAndWaitReused(VideoState &s) {
   s.reclaiming_slot.store(static_cast<i32>(slot), std::memory_order_relaxed);
   s.frame.store(slot, std::memory_order_relaxed);
   s.next_frame = (slot + 1) % kNumFrames;
+#if defined(SVR_NATIVE_RENDERER)
+  s.command_list = SvrRecordingList(slot, s.command_lists[slot].get());
+#else
   s.command_list = s.command_lists[slot].get();
+#endif
   if (s.command_list_submitted[slot]) {
-    s.queue->waitForCommandFence(s.fences[slot].get());
+    {
+#if defined(SVR_NATIVE_RENDERER)
+      SvrDiagTimer gpu_wait(SvrDiag::kGpuWait);
+#endif
+      s.queue->waitForCommandFence(s.fences[slot].get());
+    }
     s.command_list_submitted[slot] = false;
 #if defined(REXGLUE_ENABLE_PROFILING) && defined(REBLUE_D3D12)
     if (auto *ctx = GpuProfilerCtx()) {
@@ -240,7 +257,12 @@ void SubmitOpenListLocked(VideoState &s) {
   if (!s.command_list_open)
     return;
   const u32 cur = s.frame.load(std::memory_order_relaxed);
+#if defined(SVR_NATIVE_RENDERER)
+  // Threaded recording: waits for the worker to replay the rest, then ends the real list.
+  SvrRecordingList(cur, s.command_lists[cur].get())->end();
+#else
   s.command_lists[cur]->end();
+#endif
   s.command_list_open = false;
   const plume::RenderCommandList *lists[] = {s.command_lists[cur].get()};
   s.queue->executeCommandLists(lists, 1, nullptr, 0, nullptr, 0,

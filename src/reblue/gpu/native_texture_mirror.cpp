@@ -518,9 +518,13 @@ GuestTexture *Build2DMirror(const MirrorLayout &L, const u8 *src,
 // view applies the swizzle; the bindless descriptor, written when the mirror was built, is
 // pointed at that view.
 void ApplyFetchSwizzle(GuestTexture *tex, const xe::xe_gpu_texture_fetch_t &fetch, u32 guest_va) {
-  constexpr u32 kRgba = 0x688;
+  // A view already applying this swizzle (a mirror updated in place keeps its view) is left alone:
+  // rewriting its descriptor while earlier frames on the GPU read it is what NVIDIA objects to.
+  // A different swizzle (another texture loaded into the same memory) gets a new view, back to
+  // plain RGBA included.
   const u32 swizzle = fetch.swizzle;
-  if (swizzle == kRgba || !tex->texture || tex->format == plume::RenderFormat::UNKNOWN)
+  if (swizzle == tex->viewSwizzle || !tex->texture ||
+      tex->format == plume::RenderFormat::UNKNOWN)
     return;
   using S = plume::RenderSwizzle;
   static constexpr S kSource[8] = {S::R, S::G, S::B, S::A, S::ZERO, S::ONE, S::IDENTITY, S::IDENTITY};
@@ -536,7 +540,11 @@ void ApplyFetchSwizzle(GuestTexture *tex, const xe::xe_gpu_texture_fetch_t &fetc
   auto view = tex->texture->createTextureView(view_desc);
   if (!view)
     return;
+  // A texture updated in place already has a view, which draws may still be using.
+  if (tex->textureView)
+    Video::ParkTextureUntilFence(std::move(tex->textureView));
   tex->textureView = std::move(view);
+  tex->viewSwizzle = swizzle;
   auto &s = state();
   if (tex->descriptorIndex != kInvalidDescriptorIndex && s.texture_descriptor_set)
     s.texture_descriptor_set->setTexture(tex->descriptorIndex, tex->texture,
@@ -556,6 +564,7 @@ GuestTexture *GetOrCreateNativeMirror(u32 guest_va, u32 name_va) {
     return nullptr;
   std::lock_guard<std::mutex> lock(g_mirror_mutex);
 
+  std::unique_ptr<GuestTexture> previous;
   auto it = g_native_mirrors.find(guest_va);
   if (it != g_native_mirrors.end()) {
     // From the bdAllocRenderBuffer hook a hit means the engine re-malloc'd a
@@ -563,10 +572,21 @@ GuestTexture *GetOrCreateNativeMirror(u32 guest_va, u32 name_va) {
     // the preload table path (hcgTextureListRelease) that we do not hook,
     // leaving this mirror stale. From NativeTextureReplace it is the rewritten
     // payload wanting a fresh mirror. Either way, evict and rebuild.
-    g_pending_native_destroy[Video::RetireSlot("native mirror")].push_back(
-        std::move(it->second));
+    previous = std::move(it->second);
     g_native_mirrors.erase(it);
   }
+  // A rebuild with the same size and format (SvR: every Bink frame on the arena screens) uploads
+  // into the previous texture instead of creating one; otherwise the previous one is retired.
+  SetMirrorReuseTarget(previous.get());
+  struct RetirePrevious {
+    std::unique_ptr<GuestTexture> &texture;
+    ~RetirePrevious() {
+      SetMirrorReuseTarget(nullptr);
+      if (texture)
+        g_pending_native_destroy[Video::RetireSlot("native mirror")].push_back(
+            std::move(texture));
+    }
+  } retire_previous{previous};
 
   xe::xe_gpu_texture_fetch_t fetch;
   if (!ReadFetch(guest_va, fetch)) {
@@ -648,6 +668,8 @@ GuestTexture *GetOrCreateNativeMirror(u32 guest_va, u32 name_va) {
   ApplyFetchSwizzle(tex, fetch, guest_va);
 #endif
 
+  if (tex == previous.get())
+    previous.release();  // updated in place: owned by `stored` below again
   auto stored = std::unique_ptr<GuestTexture>(tex);
   GuestTexture *raw = stored.get();
   g_native_mirrors.emplace(guest_va, std::move(stored));

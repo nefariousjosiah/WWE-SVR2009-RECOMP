@@ -31,6 +31,11 @@ struct BCMipLevel {
   u32 row_width_texels; // PlacedFootprint rowWidth for this level
 };
 
+// The next builder call on this thread may upload into `texture` instead of creating a new one,
+// when the new content has the same size, format and levels (a Bink frame replacing the previous
+// one). The builder then returns `texture` itself. Cleared by the build; pass nullptr to cancel.
+void SetMirrorReuseTarget(GuestTexture *texture);
+
 // Every builder below takes data that is already untiled with 256-byte-aligned
 // rows, and returns a heap-new GuestTexture the caller owns, or nullptr.
 GuestTexture *BuildBCMirrorTexture(u32 width, u32 height, u32 format,

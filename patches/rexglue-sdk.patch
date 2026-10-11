@@ -350,6 +350,33 @@ index 11b83be..ae4b635 100644
    }
    data->input_buffer_read_offset = next_input_offset;
  }
+diff --git a/src/core/logging.cpp b/src/core/logging.cpp
+index 1645848..618f314 100644
+--- a/src/core/logging.cpp
++++ b/src/core/logging.cpp
+@@ -23,6 +23,7 @@
+ #include <toml++/toml.hpp>
+ 
+ #include <rex/cvar.h>
++#include <rex/filesystem.h>
+ #include <rex/logging.h>
+ #include <rex/platform.h>
+ #include <rex/platform/env.h>
+@@ -219,7 +220,13 @@ void InitLogging(const LogConfig& config) {
+   // File sink (rotating) with sequential naming fallback
+   std::string resolved_path;
+   if (config.log_file) {
+-    resolved_path = config.log_file;
++    // A bare file name (the shipped toml's "game.log") goes next to the exe, not into whatever
++    // folder the game was started from. A relative path with folders in it (the codegen tool's
++    // logs\codegen.log) stays relative to the working directory.
++    std::filesystem::path path(config.log_file);
++    if (path.is_relative() && !path.has_parent_path())
++      path = rex::filesystem::GetExecutableFolder() / path;
++    resolved_path = path.string();
+   } else if (!config.app_name.empty()) {
+     auto log_dir = config.log_dir.empty() ? std::filesystem::current_path() / "logs"
+                                           : std::filesystem::path(config.log_dir);
 diff --git a/src/graphics/CMakeLists.txt b/src/graphics/CMakeLists.txt
 index 0d8f8af..54d5f30 100644
 --- a/src/graphics/CMakeLists.txt
@@ -363,7 +390,7 @@ index 0d8f8af..54d5f30 100644
      util/draw_extent_estimator.cpp
      util/draw.cpp
 diff --git a/src/graphics/command_processor.cpp b/src/graphics/command_processor.cpp
-index a744375..a19755c 100644
+index a744375..d874653 100644
 --- a/src/graphics/command_processor.cpp
 +++ b/src/graphics/command_processor.cpp
 @@ -37,6 +37,10 @@
@@ -389,6 +416,36 @@ index a744375..a19755c 100644
  
    return true;
  }
+@@ -989,6 +998,9 @@ bool CommandProcessor::ExecutePacketType3_WAIT_REG_MEM(memory::RingBuffer* reade
+ 
+   bool is_memory = (wait_info & 0x10) != 0;
+ 
++  constexpr auto kPollBeforeSleep = std::chrono::milliseconds(2);
++  bool spin_started = false;
++  std::chrono::steady_clock::time_point spin_start;
+   bool matched = false;
+   do {
+     uint32_t value = 0;
+@@ -1030,7 +1042,18 @@ bool CommandProcessor::ExecutePacketType3_WAIT_REG_MEM(memory::RingBuffer* reade
+         break;
+     }
+     if (!matched) {
+-      // Wait.
++      // Wait. The first couple of milliseconds poll (yielding) rather than sleep: games wait
++      // here for a value the CPU is about to write (SvR: a semaphore its D3D clears), and a
++      // 1 ms sleep can take several ms depending on the system timer, which leaves the command
++      // processor behind and the game then waits for it at its frame throttle.
++      if (!spin_started) {
++        spin_started = true;
++        spin_start = std::chrono::steady_clock::now();
++      }
++      if (wait >= 0x100 && std::chrono::steady_clock::now() - spin_start < kPollBeforeSleep) {
++        rex::thread::MaybeYield();
++        continue;
++      }
+       if (wait >= 0x100) {
+         PrepareForWait();
+         if (!REXCVAR_GET(vsync)) {
 diff --git a/src/graphics/d3d12/command_processor.cpp b/src/graphics/d3d12/command_processor.cpp
 index 19874a5..0ddc147 100644
 --- a/src/graphics/d3d12/command_processor.cpp

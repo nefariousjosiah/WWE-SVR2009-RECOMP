@@ -24,9 +24,7 @@ void ReemitPredictions() {}
 bool IsPairPredicted(u64, u64) { return false; }
 std::string DescribePair(u64, u64) { return {}; }
 
-bool PrecacheEnabled() { return false; }
-void EnqueuePipeline(const PipelineState &) {}
-void EnqueuePipelinePriority(const PipelineState &) {}
+// PrecacheEnabled / EnqueuePipeline / EnqueuePipelinePriority: svr_pipeline_store.cpp.
 void BeginLoadCapture() {}
 void EndLoadCapture() {}
 

@@ -8,6 +8,9 @@
  * @license   BSD 3-Clause License
  *            See LICENSE file in the project root for full license text.
  */
+#if defined(SVR_NATIVE_RENDERER)
+#include "svr_frame_diag.h"
+#endif
 #include <algorithm>
 #include <atomic>
 #include <cmath>
@@ -113,6 +116,9 @@ void DispatchDraw(u32 device_guest, u32 primitive_type, const char *name,
   // One lock across the whole recording sequence: loader threads record texture
   // uploads and Present records under the same mutex, and the per-frame command
   // list they all write is single-producer.
+#if defined(SVR_NATIVE_RENDERER)
+  bd::gpu::SvrDiagTimer diag_draw(bd::gpu::SvrDiag::kDraw);
+#endif
   auto &s = bd::gpu::state();
   std::unique_lock<std::mutex> lock(s.mutex);
   bd::gpu::Video::OpenCommandListLocked();

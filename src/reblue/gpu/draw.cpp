@@ -8,11 +8,15 @@
  * @license   BSD 3-Clause License
  *            See LICENSE file in the project root for full license text.
  */
+#if defined(SVR_NATIVE_RENDERER)
+#include "svr_frame_diag.h"
+#endif
 #include "gpu/frame.h"
 #if defined(SVR_NATIVE_RENDERER)
 #include "svr_resources.h"
 #endif
 
+#include <chrono>
 #include <cstddef>
 #include <algorithm>
 #include <atomic>
@@ -404,7 +408,17 @@ bool Video::FlushRenderStateLocked(u32 device_guest) {
     PipelineState lookup = s.pipelineState;
     SanitizePipelineState(lookup);
     bool built = false;
+#if defined(SVR_NATIVE_RENDERER)
+    const auto pso_start = std::chrono::steady_clock::now();
+#endif
     auto *pso = GetOrCreatePipeline(lookup, &built);
+#if defined(SVR_NATIVE_RENDERER)
+    if (built)
+      SvrDiagAdd(SvrDiag::kPipelineCompile,
+                 u64(std::chrono::duration_cast<std::chrono::microseconds>(
+                         std::chrono::steady_clock::now() - pso_start)
+                         .count()));
+#endif
     if (!pso) {
       u32 n;
       if (DiagShouldLog(4, s.render_target, &n)) {

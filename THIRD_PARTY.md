@@ -14,6 +14,9 @@ folder.
 | [plume](https://github.com/zolaware/plume) | fetched at `e0c8871`, plus `patches/plume.patch` | MIT |
 | [XenosRecomp](https://github.com/zolaware/reblue-XenosRecomp) (build tool, shader recompiler) | fetched at `339af41`, plus `patches/xenosrecomp.patch` | MIT |
 | [zstd](https://github.com/facebook/zstd) (decompression, single-file decoder) | `third_party/reblue_thirdparty/zstd` | BSD, `third_party/reblue_thirdparty/zstd/LICENSE` |
+| [miniz](https://github.com/richgel999/miniz) (the Direct3D 12 build's linked-shader cache) | `third_party/reblue_thirdparty/miniz` | public domain (Unlicense), `third_party/reblue_thirdparty/miniz/LICENSE` |
+| re:Blue's shader prelink tool and runtime DXC linker (Direct3D 12) | `tools/native/prelink_shader_cache.cpp`, `src/reblue/gpu/shaders/dxc_link.*`, `shader_linker.*` | BSD 3-Clause (re:Blue) |
+| [DirectX Shader Compiler](https://github.com/microsoft/DirectXShaderCompiler) 1.8.2407 (`dxcompiler.dll`, `dxil.dll`, shipped next to `svr2009.exe`; also used at build time) | from XenosRecomp's `thirdparty/dxc-bin` | `dxcompiler.dll`: University of Illinois/NCSA, `third_party/licenses/DirectXShaderCompiler-LICENSE.txt`; `dxil.dll`: Microsoft's licence terms for it |
 | Press Start 2P font (FPS counter) | `res/fonts` | SIL Open Font License 1.1, `res/fonts/OFL.txt` |
 | Roboto Medium font (settings menu) | `res/fonts` | Apache 2.0, `res/fonts/LICENSE-Roboto.txt` |
 | [nlohmann/json](https://github.com/nlohmann/json) (the updater reads GitHub's release info) | header from the ReXGlue SDK's third-party tree, compiled into `svr2009.exe` | MIT |

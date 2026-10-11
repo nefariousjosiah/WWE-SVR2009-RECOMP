@@ -62,6 +62,8 @@ struct Mirror {
   bool has_content = false;
   u32 changes = 0;        // consecutive checks that found new content
   u64 hash = 0;
+  u64 sample = 0;         // SampleHash of the content `hash` was taken from
+  u32 stable = 0;         // full checks in a row that found the content unchanged
   u64 checked_frame = 0;  // frame the copy was last compared in; 0 = compare at the next use
   u64 used_frame = 0;
   std::unique_ptr<plume::RenderBuffer> buffer;  // static content
@@ -115,6 +117,28 @@ void CopyAsGpuReads(void *dst, const u8 *src, u32 size, u32 endian) {
   }
 }
 
+// A full-arena frame uses tens of MB of vertex data; hashing all of it every frame cost several ms
+// on CPUs with smaller caches. Rewrites through Lock/Unlock are flagged by the Unlock hooks (a full
+// check at the next use), so a buffer nobody unlocked gets a spot check in between full checks
+// every kFullCheckFrames frames (staggered by address). The spot check catches content loaded
+// wholesale into reused memory at once. A buffer that changed is checked in full every frame until
+// two full checks in a row find it unchanged: another thread may still have been writing it when
+// it was copied (crowd members went missing on slower CPUs when the spot check skipped the rest).
+constexpr u64 kFullCheckFrames = 8;
+constexpr u32 kStableBeforeSpotChecks = 2;
+constexpr u32 kAlwaysFullBytes = 16 * 1024;
+constexpr u32 kSamples = 16, kSampleBytes = 64;
+
+u64 SampleHash(const u8 *src, u32 size) {
+  if (size <= kSamples * kSampleBytes)
+    return XXH3_64bits(src, size);
+  u8 buf[kSamples * kSampleBytes];
+  const u32 step = (size - kSampleBytes) / (kSamples - 1);
+  for (u32 i = 0; i < kSamples; ++i)
+    std::memcpy(buf + i * kSampleBytes, src + size_t(i) * step, kSampleBytes);
+  return XXH3_64bits(buf, sizeof(buf));
+}
+
 // Draws already recorded keep a retired copy until its frame slot's fence.
 void Retire(Mirror &m) {
   if (m.buffer)
@@ -163,7 +187,24 @@ bool ResolveLocked(u32 address, u32 size, u32 endian, bool index, u64 frame,
       return true;
     }
   }
+  // Not unlocked since its last check (checked_frame != 0), not due a full check: spot check.
+  const u64 sample = SampleHash(src, size);
+  if (same_kind && m.checked_frame != 0 && size > kAlwaysFullBytes && !CompareEveryDraw() &&
+      m.stable >= kStableBeforeSpotChecks && (frame + (address >> 8)) % kFullCheckFrames != 0 &&
+      sample == m.sample) {
+    m.checked_frame = frame;
+    if (m.buffer) {
+      out = m.buffer.get();
+      return true;
+    }
+    if (ring_current) {
+      out = m.ring;
+      return true;
+    }
+  }
   const u64 hash = XXH3_64bits(src, size);
+  m.sample = sample;
+  m.stable = (same_kind && hash == m.hash) ? m.stable + 1 : 0;
   if (same_kind && hash == m.hash) {
     m.checked_frame = frame;
     if (m.buffer) {

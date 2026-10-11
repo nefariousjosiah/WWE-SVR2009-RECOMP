@@ -11,6 +11,7 @@
 
 #include <memory>
 #include <mutex>
+#include <utility>
 #include <vector>
 
 #include <plume_render_interface.h>
@@ -58,16 +59,51 @@ struct BCSubresourceUpload {
 // triggered TDR during load. Uploads precede AllocateSlot so a failure path
 // deletes the texture without leaking a slot (GuestTexture has no destructor-
 // side slot release).
+thread_local GuestTexture *t_reuse = nullptr;
+
+bool CanReuse(const GuestTexture *t, const BCMirrorDesc &d) {
+  return t && t->texture && t->type == d.resource_type && t->width == d.width &&
+         t->height == d.height && t->depth == d.depth && t->mipLevels == d.mip_levels &&
+         t->format == d.format && t->viewDimension == d.view_dim && d.array_size == 1 &&
+         t->descriptorIndex != kInvalidDescriptorIndex && !t->companion2D && !t->companionCube;
+}
+
 GuestTexture *BuildBCMirrorCore(const BCMirrorDesc &d,
                                 const BCSubresourceUpload *uploads,
                                 u32 upload_count) {
   auto &s = state();
   std::lock_guard lock(s.mutex);
+  GuestTexture *reuse = std::exchange(t_reuse, nullptr);
   if (!s.ready)
     return nullptr;
   BeginCommandList(s);
   if (!s.command_list_open)
     return nullptr;
+
+  // Same shape as the texture being replaced: copy the new content into it. The barriers order the
+  // copy after every earlier draw that sampled the old content, this frame's and earlier frames'.
+  if (CanReuse(reuse, d)) {
+    std::vector<ConstantAllocation> allocs(upload_count);
+    for (u32 i = 0; i < upload_count; ++i) {
+      allocs[i] = UploadHostBytes(uploads[i].data, static_cast<u32>(uploads[i].size), 0x200);
+      if (!allocs[i].memory)
+        return nullptr;
+    }
+    plume::RenderTextureBarrier pre(reuse->texture, plume::RenderTextureLayout::COPY_DEST);
+    s.command_list->barriers(plume::RenderBarrierStage::COPY, &pre, 1);
+    for (u32 i = 0; i < upload_count; ++i) {
+      s.command_list->copyTextureRegion(
+          plume::RenderTextureCopyLocation::Subresource(reuse->texture, uploads[i].subresource,
+                                                        uploads[i].array_index),
+          plume::RenderTextureCopyLocation::PlacedFootprint(
+              allocs[i].ref.ref, d.format, uploads[i].width, uploads[i].height,
+              uploads[i].fp_depth, uploads[i].row_width_texels, allocs[i].ref.offset));
+    }
+    plume::RenderTextureBarrier post(reuse->texture, plume::RenderTextureLayout::SHADER_READ);
+    s.command_list->barriers(plume::RenderBarrierStage::GRAPHICS, &post, 1);
+    reuse->layout = plume::RenderTextureLayout::SHADER_READ;
+    return reuse;
+  }
 
   auto *t = new GuestTexture(d.resource_type);
   t->width = d.width;
@@ -146,6 +182,8 @@ GuestTexture *BuildBCMirrorCore(const BCMirrorDesc &d,
 }
 
 } // namespace
+
+void SetMirrorReuseTarget(GuestTexture *texture) { t_reuse = texture; }
 
 GuestTexture *BuildBCMirrorTexture(u32 width, u32 height, u32 format,
                                           const void *block_data,

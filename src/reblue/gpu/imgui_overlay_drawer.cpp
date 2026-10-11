@@ -257,6 +257,11 @@ ImGuiOverlayDrawer::CreateTexture(u32 width, u32 height,
                                   bool is_repeated, const u8 *data) {
   // SDK contract: return nullptr until the device exists. ImGuiDrawer retries
   // the font atlas upload next Draw.
+  if (capture_thread_.load(std::memory_order_relaxed)) {
+    // A recording has no open command list to upload through: ask for a direct draw.
+    needs_direct_.store(true, std::memory_order_relaxed);
+    return nullptr;
+  }
   if (!TryInitDeviceResources())
     return nullptr;
   if (!data || width == 0 || height == 0)
@@ -283,6 +288,21 @@ void ImGuiOverlayDrawer::Begin(rex::ui::UIDrawContext &ctx, float coord_w,
                                float coord_h) {
   rex::ui::ImmediateDrawer::Begin(ctx, coord_w, coord_h);
   batch_open_ = false;
+  capturing_ = false;
+  if (capture_thread_.load(std::memory_order_relaxed)) {
+    // Recording (UI thread): nothing is drawn, the output is kept for ReplayLatest. Without
+    // the device resources there is nothing to replay with, so nothing is recorded.
+    cmd_ = nullptr;
+    if (!resources_ready_)
+      return;
+    capturing_ = true;
+    building_ = Recording{};
+    building_.rt_w = ctx.render_target_width();
+    building_.rt_h = ctx.render_target_height();
+    building_.coord_w = coord_w;
+    building_.coord_h = coord_h;
+    return;
+  }
   if (!TryInitDeviceResources()) {
     cmd_ = nullptr;
     return;
@@ -292,38 +312,50 @@ void ImGuiOverlayDrawer::Begin(rex::ui::UIDrawContext &ctx, float coord_w,
   cmd_ = rctx.command_list();
   if (!cmd_)
     return;
+  BindOverlayState(cmd_, rctx.framebuffer(), ctx.render_target_width(),
+                   ctx.render_target_height(), coordinate_space_width(),
+                   coordinate_space_height());
+}
 
-  const float cw = coordinate_space_width();
-  const float ch = coordinate_space_height();
-
-  cmd_->setFramebuffer(rctx.framebuffer());
-  plume::RenderViewport vp(
-      0.0f, 0.0f, static_cast<float>(ctx.render_target_width()),
-      static_cast<float>(ctx.render_target_height()), 0.0f, 1.0f);
-  cmd_->setViewports(&vp, 1);
+void ImGuiOverlayDrawer::BindOverlayState(plume::RenderCommandList *cmd,
+                                          plume::RenderFramebuffer *fb, u32 rt_w,
+                                          u32 rt_h, float coord_w, float coord_h) {
+  cmd->setFramebuffer(fb);
+  plume::RenderViewport vp(0.0f, 0.0f, static_cast<float>(rt_w),
+                           static_cast<float>(rt_h), 0.0f, 1.0f);
+  cmd->setViewports(&vp, 1);
   // Bind our layout before the sets: BeginCommandList leaves reblue's main
   // layout active and sets bind against whatever layout is current.
-  cmd_->setGraphicsPipelineLayout(layout_.get());
-  cmd_->setPipeline(pipeline_.get());
-  cmd_->setGraphicsDescriptorSet(bd::gpu::state().texture_descriptor_set.get(),
-                                 0);
-  cmd_->setGraphicsDescriptorSet(bd::gpu::state().sampler_descriptor_set.get(),
-                                 1);
+  cmd->setGraphicsPipelineLayout(layout_.get());
+  cmd->setPipeline(pipeline_.get());
+  cmd->setGraphicsDescriptorSet(bd::gpu::state().texture_descriptor_set.get(),
+                                0);
+  cmd->setGraphicsDescriptorSet(bd::gpu::state().sampler_descriptor_set.get(),
+                                1);
 
   // Ortho projection push constant (b0,space2, VERTEX range 0), y flipped.
   struct Ortho {
     float scale[2];
     float translate[2];
   } ortho;
-  ortho.scale[0] = 2.0f / cw;
-  ortho.scale[1] = -2.0f / ch;
+  ortho.scale[0] = 2.0f / coord_w;
+  ortho.scale[1] = -2.0f / coord_h;
   ortho.translate[0] = -1.0f;
   ortho.translate[1] = 1.0f;
-  cmd_->setGraphicsPushConstants(0, &ortho, 0, sizeof(ortho));
+  cmd->setGraphicsPushConstants(0, &ortho, 0, sizeof(ortho));
 }
 
 void ImGuiOverlayDrawer::BeginDrawBatch(const rex::ui::ImmediateDrawBatch &b) {
   batch_open_ = false;
+  if (capturing_) {
+    CapturedBatch &batch = building_.batches.emplace_back();
+    if (b.vertex_count > 0)
+      batch.vertices.assign(b.vertices, b.vertices + b.vertex_count);
+    if (b.indices && b.index_count > 0)
+      batch.indices.assign(b.indices, b.indices + b.index_count);
+    batch_open_ = b.vertex_count > 0;
+    return;
+  }
   if (!cmd_ || b.vertex_count <= 0)
     return;
 
@@ -348,6 +380,21 @@ void ImGuiOverlayDrawer::BeginDrawBatch(const rex::ui::ImmediateDrawBatch &b) {
 }
 
 void ImGuiOverlayDrawer::Draw(const rex::ui::ImmediateDraw &draw) {
+  if (capturing_) {
+    u32 l, t, w, h;
+    if (!batch_open_ || draw.count <= 0 || !ScissorToRenderTarget(draw, l, t, w, h))
+      return;
+    u32 tex_slot = white_slot_, samp_slot = 0;
+    if (draw.texture) {
+      auto *tex = static_cast<PlumeImmediateTexture *>(draw.texture);
+      tex_slot = tex->tex_slot();
+      samp_slot = tex->sampler_slot();
+    }
+    building_.batches.back().draws.push_back({u32(draw.count), u32(draw.index_offset),
+                                              draw.base_vertex, tex_slot, samp_slot, l, t,
+                                              w, h});
+    return;
+  }
   if (!cmd_ || !batch_open_ || draw.count <= 0)
     return;
 
@@ -374,8 +421,66 @@ void ImGuiOverlayDrawer::Draw(const rex::ui::ImmediateDraw &draw) {
 void ImGuiOverlayDrawer::EndDrawBatch() { batch_open_ = false; }
 
 void ImGuiOverlayDrawer::End() {
+  if (capturing_) {
+    capturing_ = false;
+    auto done = std::make_shared<const Recording>(std::move(building_));
+    building_ = Recording{};
+    std::lock_guard lock(recording_mutex_);
+    latest_ = std::move(done);
+  } else if (cmd_) {
+    // A direct draw uploaded whatever textures it needed.
+    needs_direct_.store(false, std::memory_order_relaxed);
+  }
   cmd_ = nullptr;
   rex::ui::ImmediateDrawer::End();
+}
+
+void ImGuiOverlayDrawer::ClearCapture() {
+  std::lock_guard lock(recording_mutex_);
+  latest_.reset();
+}
+
+// Present's thread, with Present's command list open: draws the latest recording.
+bool ImGuiOverlayDrawer::ReplayLatest(plume::RenderCommandList *cmd,
+                                      plume::RenderFramebuffer *fb, u32 rt_w,
+                                      u32 rt_h) {
+  std::shared_ptr<const Recording> rec;
+  {
+    std::lock_guard lock(recording_mutex_);
+    rec = latest_;
+  }
+  if (!cmd || !rec || !resources_ready_ || rec->rt_w != rt_w || rec->rt_h != rt_h)
+    return false;
+  BindOverlayState(cmd, fb, rt_w, rt_h, rec->coord_w, rec->coord_h);
+  for (const CapturedBatch &batch : rec->batches) {
+    if (batch.vertices.empty() || batch.draws.empty())
+      continue;
+    ConstantAllocation va = UploadHostBytes(
+        batch.vertices.data(),
+        u32(sizeof(rex::ui::ImmediateVertex) * batch.vertices.size()), 16);
+    if (!va.memory)
+      return true;
+    const plume::RenderVertexBufferView vbv(va.ref, va.size);
+    cmd->setVertexBuffers(0, &vbv, 1, &kImGuiInputSlot);
+    if (!batch.indices.empty()) {
+      ConstantAllocation ia = UploadHostBytes(
+          batch.indices.data(), u32(sizeof(u16) * batch.indices.size()), 4);
+      if (!ia.memory)
+        return true;
+      const plume::RenderIndexBufferView ibv(ia.ref, ia.size,
+                                             plume::RenderFormat::R16_UINT);
+      cmd->setIndexBuffer(&ibv);
+    }
+    for (const CapturedDraw &d : batch.draws) {
+      plume::RenderRect rc(i32(d.left), i32(d.top), i32(d.left + d.width),
+                           i32(d.top + d.height));
+      cmd->setScissors(&rc, 1);
+      u32 slots[2] = {d.tex_slot, d.sampler_slot};
+      cmd->setGraphicsPushConstants(1, slots, 0, sizeof(slots)); // PIXEL range 1
+      cmd->drawIndexedInstanced(d.count, 1, d.index_offset, d.base_vertex, 0);
+    }
+  }
+  return true;
 }
 
 } // namespace bd::gpu

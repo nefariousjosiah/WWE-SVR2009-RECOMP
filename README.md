@@ -2,7 +2,8 @@
 
 The Xbox 360 version of **WWE SmackDown vs. Raw 2009**, running natively on Windows, and on Linux
 and the Steam Deck through Proton: no emulator. The game's own program is recompiled to run
-directly on your PC, and its graphics go through a native Vulkan renderer, at 60 fps and up to 4K.
+directly on your PC, and its graphics go through a native renderer (Direct3D 12 on Windows,
+Vulkan on Linux and the Steam Deck), at 60 fps and up to 4K.
 
 **The goal is simple: bring the game back so people can play it again, natively on PC at 60 fps.**
 It's the same game you remember, with no mods, roster changes or reworked gameplay. The only changes
@@ -39,21 +40,31 @@ loading.
 
 - **Native, not emulated.** The game's PowerPC code is statically recompiled to x86-64
   ([ReXGlue](https://github.com/rexglue/rexglue-sdk)), and the game's own Direct3D calls are drawn
-  by a native Vulkan renderer (adapted from [re:Blue](https://github.com/zolaware/reblue)) with
-  the game's shaders recompiled ahead of time. No GPU emulation.
+  by a native renderer (adapted from [re:Blue](https://github.com/zolaware/reblue)) with the
+  game's shaders recompiled ahead of time. No GPU emulation.
+- **Direct3D 12 on Windows, Vulkan on Linux and the Steam Deck.** `svr2009.exe` draws with
+  Direct3D 12; under Proton it starts `svr2009_vulkan.exe` by itself, so Deck players change
+  nothing. *Graphics API* in the settings menu switches between them (if one doesn't suit your
+  graphics card, try the other).
+- **Runs smoothly on lower-end PCs too.** The renderer does far less work per frame: the graphics
+  driver's work runs on its own thread, and textures, geometry and shader settings are only sent
+  again when they change. Every shader variant is prepared when the game is built, and the
+  graphics pipelines the game uses are compiled in the background while each scene loads, instead
+  of in the middle of an entrance. **CPU priority: High** in the settings menu helps further on
+  busy or weak PCs.
 - **60 fps** in menus and matches, using the game's own 60 fps mode so game speed stays right
   (the original 30 fps is one setting away). Road to WrestleMania cutscenes play at 60 fps too;
   their captions then show a few seconds early, so **Cutscenes > 30 fps** in the settings menu
   plays them as on the console, with the captions in sync.
 - **Up to 4K.** Internal resolution follows your screen: 1440p on 1080p and 1440p monitors, 4K on
-  4K monitors, 720p on the Steam Deck. Or pick 720p / 1440p / 4K yourself. 16x anisotropic
-  filtering.
+  4K monitors, 720p on the Steam Deck and on laptops' built-in graphics. The settings menu shows
+  what Auto picked, or pick 720p / 1440p / 4K yourself. 16x anisotropic filtering.
 - **Sharper image:** the game's own edge-blur filter (the console's cheap anti-aliasing, which
   smeared hair, tattoos, ropes and the crowd) is off; the higher internal resolution smooths edges
   instead. `svr_edge_blur = true` in `svr2009.toml` brings the original look back.
-- **In-game settings menu:** F1, or Back + Start on a controller (Share + Options on PlayStation): resolution, fullscreen or
-  window, 60 or 30 fps, screen shape, FPS counter, sound, keyboard controls and how controllers
-  map to players. Saved for next time.
+- **In-game settings menu:** F1, or Back + Start on a controller (Share + Options on PlayStation): resolution, graphics API,
+  fullscreen or window, 60 or 30 fps, screen shape, FPS counter, sound, keyboard controls, how
+  controllers map to players and CPU priority. Saved for next time.
 - **Updates in the game, when you want them:** a new version is announced at startup and installed
   from the settings menu only if you choose to. Your saves are kept and backed up first (see
   [Updating](#updating)).
@@ -75,9 +86,9 @@ loading.
 - **Your own SvR 2009 disc image**, USA / Europe release (one release for both regions: title ID
   `54510826`, media ID `7AFA4596`, about 7.3 GB). Other releases aren't supported
   yet.
-- **Windows 10 or 11, 64-bit**, and a graphics card with **Vulkan** support (AMD, NVIDIA or Intel,
-  with a recent driver). Or **Linux** with Steam (Proton) and Vulkan drivers, such as a
-  **Steam Deck**.
+- **Windows 10 or 11, 64-bit**, and a graphics card with **Direct3D 12** or **Vulkan** support
+  (AMD, NVIDIA or Intel, with a recent driver). Or **Linux** with Steam (Proton) and Vulkan
+  drivers, such as a **Steam Deck**.
 - About 130 MB for the program, plus your disc image.
 
 ## Windows: install and play
@@ -93,9 +104,10 @@ loading.
 Good to know:
 
 - **Settings:** press **F1** in game (or **Back + Start** on a controller, **Share + Options** on PlayStation) for the settings menu:
-  resolution (Auto, 720p, 1440p, 4K), fullscreen or window, 60 or 30 fps, screen shape, FPS
-  counter, sound, keyboard controls and **Controllers** (every controller on player 1 by default;
-  choose **Separate players** for local multiplayer). They are saved in `svr2009.toml`.
+  resolution (Auto, 720p, 1440p, 4K), graphics API (Auto, Direct3D 12, Vulkan), fullscreen or
+  window, 60 or 30 fps, screen shape, FPS counter, sound, keyboard controls, **Controllers**
+  (every controller on player 1 by default; choose **Separate players** for local multiplayer) and
+  CPU priority. They are saved in `svr2009.toml`.
 - **"Windows protected your PC"**: the program isn't code-signed. Click *More info* and then
   *Run anyway*.
 - **Quitting:** close the game window (Alt+F4 or the close button).
@@ -224,8 +236,8 @@ Notes for the Deck:
 |---|---|
 | A window asks for a disc image | There's no `.iso` next to `svr2009.exe`: pick your disc image (it's remembered), or copy it into the game's folder. |
 | The game closes right after starting | Check that your disc image is the USA / Europe release of SvR 2009 and complete. |
-| Black screen, or the game closes | Update your graphics driver (the renderer needs Vulkan), then try again. If it keeps happening, open an issue with `game.log` from the game's folder. |
-| It runs slowly | **F1** > *Resolution* > **720p** or **1440p** (applies on the next start): lower resolutions need less from the graphics card. |
+| Black screen, or the game closes | Update your graphics driver, then try again. Still happening: **F1** > *Graphics API* > the other one (or add `svr_graphics_api = "vulkan"` to `svr2009.toml`), and start again. If it keeps happening, open an issue with `game.log` from the game's folder. |
+| It runs slowly | Make sure you have the latest version (v0.6 made a big difference on older PCs). **F1** > *CPU priority* > **High** helps on a busy or weak PC. On a weak graphics card, **F1** > *Resolution* > **720p** (applies on the next start) needs less from it. If it still drops, open an issue with `game.log`, your processor and graphics card. |
 | Windows blocks it | *More info* > *Run anyway* (the program isn't code-signed). |
 
 ## How it works
@@ -235,9 +247,10 @@ Notes for the Deck:
   provided by the ReXGlue runtime, which also reads the game's data straight from your disc image.
 - **Rendering.** Instead of emulating the Xbox 360 GPU, the renderer watches the game's own
   Direct3D library (statically linked into the game) and draws the same scenes through
-  [plume](https://github.com/zolaware/plume) on Vulkan. The game's shaders are converted ahead of
-  time with [XenosRecomp](https://github.com/zolaware/reblue-XenosRecomp). The emulated GPU only
-  keeps the game's command stream moving.
+  [plume](https://github.com/zolaware/plume) on Direct3D 12 or Vulkan (two builds of the game,
+  `svr2009.exe` and `svr2009_vulkan.exe`). The game's shaders are converted ahead of time with
+  [XenosRecomp](https://github.com/zolaware/reblue-XenosRecomp); for Direct3D 12 every variant is
+  also linked ahead of time. The emulated GPU only keeps the game's command stream moving.
 - **60 fps.** The game has its own 60 fps mode, which it normally drops to 30 for matches; a hook
   keeps it at 60, so the game logic and the animations stay in step.
 

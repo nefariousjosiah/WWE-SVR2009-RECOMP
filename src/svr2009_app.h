@@ -13,6 +13,7 @@
 #include <rex/input/input_system.h>
 #include <rex/ui/keybinds.h>
 
+#include <atomic>
 #include <filesystem>
 #include <memory>
 
@@ -20,6 +21,7 @@
 #include "dlc_install.h"
 #include "game_locator.h"
 #include "settings_menu.h"
+#include "graphics_api.h"
 #if defined(SVR_NATIVE_RENDERER)
 #include "gpu/device.h"
 #include "gpu/imgui_overlay_drawer.h"
@@ -32,6 +34,7 @@ REXCVAR_DECLARE(std::string, gpu_backend);
 REXCVAR_DECLARE(bool, svr_fps_counter);
 REXCVAR_DECLARE(bool, svr_check_updates);
 REXCVAR_DECLARE(bool, svr_controllers_shared);
+REXCVAR_DECLARE(bool, svr_high_priority);
 
 #ifndef SVR_VERSION
 #define SVR_VERSION "dev"  // set by CMakeLists.txt (project VERSION)
@@ -42,6 +45,21 @@ inline constexpr const char* kWindowTitle = "WWE SmackDown vs. Raw 2009";
 // Set while the settings menu reads the pad through the game's input system (UI thread only), so
 // the input gate lets that read through.
 inline thread_local bool t_overlay_reads_pad = false;
+
+#if defined(SVR_NATIVE_RENDERER)
+namespace bd::gpu {
+uint32_t SvrAutoRenderScale();  // src/native/svr_resources.h
+}
+#endif
+
+// Above-normal process priority (settings menu > CPU priority): the game's threads go first when
+// other programs want the processor, which keeps entrances smooth on busy or weak PCs.
+inline void SvrSetHighPriority(bool on) {
+#if defined(_WIN32)
+  SetPriorityClass(GetCurrentProcess(), on ? ABOVE_NORMAL_PRIORITY_CLASS : NORMAL_PRIORITY_CLASS);
+#endif
+  REXLOG_INFO("CPU priority: {}", on ? "high (above normal)" : "normal");
+}
 
 class Svr2009App : public rex::ReXApp {
  public:
@@ -81,26 +99,52 @@ class Svr2009App : public rex::ReXApp {
 #if defined(SVR_NATIVE_RENDERER)
   // The plume device draws the ImGui overlays (FPS counter etc.) at present time.
   std::unique_ptr<rex::ui::ImmediateDrawer> OnCreateImmediateDrawer() override {
-    return std::make_unique<bd::gpu::ImGuiOverlayDrawer>();
+    auto drawer = std::make_unique<bd::gpu::ImGuiOverlayDrawer>();
+    overlay_drawer_ = drawer.get();
+    return drawer;
   }
 
   void OnPreLaunchModule() override {
     if (!bd::gpu::Video::CreateHostDevice(window())) {
       REXLOG_ERROR("Native renderer: host device creation failed");
+#if defined(_WIN32)
+      // No working device on this API (an old graphics card or driver): try the other program.
+      DWORD unused = 0;
+      if (svr::StartOtherGraphicsApi(false, unused))
+        REXLOG_INFO("Graphics API: started the {} program instead",
+                    svr::kThisIsD3D12 ? "Vulkan" : "Direct3D 12");
+#endif
       app_context().QuitFromUIThread();
       return;
     }
-    // Present runs on the guest thread and ImGui on the UI thread, so the overlay is drawn
-    // synchronously on the UI thread into the frame being presented.
+    // Present runs on the guest thread and ImGui on the UI thread. Waiting for the UI thread to
+    // draw the overlay (FPS counter, settings) cost the game thread a few ms every frame, so
+    // the UI thread records the overlay in the background and Present replays the latest
+    // recording (ImGuiOverlayDrawer::Capture). Only the first frame, a resize or a new font
+    // texture still draws directly on the UI thread.
     bd::gpu::Video::SetOverlayDrawHook([this](plume::RenderCommandList* cmd,
                                               plume::RenderFramebuffer* fb, uint32_t w,
                                               uint32_t h) {
-      if (!imgui_drawer() || !imgui_drawer()->HasDialogs())
+      auto* drawer = overlay_drawer_;
+      if (!imgui_drawer() || !imgui_drawer()->HasDialogs()) {
+        if (drawer)
+          drawer->ClearCapture();
         return;
-      app_context().CallInUIThreadSynchronous([this, cmd, fb, w, h] {
-        bd::gpu::ReblueUIDrawContext ctx(w, h, cmd, fb);
-        imgui_drawer()->Draw(ctx);
-      });
+      }
+      if (!drawer || drawer->NeedsDirectDraw() || !drawer->ReplayLatest(cmd, fb, w, h)) {
+        app_context().CallInUIThreadSynchronous([this, cmd, fb, w, h] {
+          bd::gpu::ReblueUIDrawContext ctx(w, h, cmd, fb);
+          imgui_drawer()->Draw(ctx);
+        });
+      }
+      if (drawer && !overlay_capture_pending_.exchange(true)) {
+        app_context().CallInUIThread([this, w, h] {
+          if (imgui_drawer() && overlay_drawer_)
+            overlay_drawer_->Capture(
+                w, h, [this](rex::ui::UIDrawContext& ctx) { imgui_drawer()->Draw(ctx); });
+          overlay_capture_pending_.store(false);
+        });
+      }
     });
   }
 
@@ -111,7 +155,12 @@ class Svr2009App : public rex::ReXApp {
     // Replaces the SDK's "svr2009 [rexglue-<build>]" title set during window creation.
     if (window())
       window()->SetTitle(kWindowTitle);
+#if defined(_WIN32)
+    REXLOG_INFO("Graphics API: {}", svr::GraphicsApiDescription());
+#endif
     frame_dumper_.Start(runtime()->graphics_system());
+    if (REXCVAR_GET(svr_high_priority))
+      SvrSetHighPriority(true);
     // Add-on packages in <exe>/dlc are installed once (dlc_install.h).
     svr::InstallDlcPackages(runtime()->kernel_state(), rex::filesystem::GetExecutableFolder() / "dlc",
                            runtime()->user_data_root());
@@ -165,6 +214,9 @@ class Svr2009App : public rex::ReXApp {
   }
 
   void OnShutdown() override {
+#if defined(SVR_NATIVE_RENDERER)
+    overlay_drawer_ = nullptr;
+#endif
     rex::ui::UnregisterBind("bind_fps_counter");
     rex::ui::UnregisterBind("bind_svr_settings");
     settings_menu_.reset();
@@ -242,6 +294,18 @@ class Svr2009App : public rex::ReXApp {
       return any;
     };
     hooks.set_controllers_shared = [this](bool on) { SetControllersShared(on); };
+    hooks.set_high_priority = [](bool on) { SvrSetHighPriority(on); };
+#if defined(SVR_NATIVE_RENDERER)
+    hooks.auto_resolution = [] {
+      static constexpr const char* kNames[] = {"720p", "720p", "1440p", "4K", "2880p"};
+      return std::string(kNames[std::min(bd::gpu::SvrAutoRenderScale(), 4u)]);
+    };
+#endif
+#if defined(_WIN32)
+    hooks.auto_graphics_api = [] {
+      return std::string(svr::WantsVulkan("auto") ? "Vulkan" : "Direct3D 12");
+    };
+#endif
     hooks.updater = [this] { return updater_.get(); };
     hooks.quit = [this] { app_context().QuitFromUIThread(); };
     settings_menu_ = std::make_unique<SettingsMenuDialog>(
@@ -295,4 +359,8 @@ class Svr2009App : public rex::ReXApp {
   std::unique_ptr<FpsCounterDialog> fps_counter_;
   std::unique_ptr<SettingsMenuDialog> settings_menu_;
   std::unique_ptr<svr::Updater> updater_;
+#if defined(SVR_NATIVE_RENDERER)
+  bd::gpu::ImGuiOverlayDrawer* overlay_drawer_ = nullptr;  // owned by the ImGui drawer
+  std::atomic<bool> overlay_capture_pending_{false};
+#endif
 };

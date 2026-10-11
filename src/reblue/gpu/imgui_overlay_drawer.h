@@ -9,7 +9,10 @@
  */
 #pragma once
 
+#include <atomic>
 #include <memory>
+#include <mutex>
+#include <vector>
 #include <rex/types.h>
 
 #include <rex/ui/immediate_drawer.h>
@@ -76,7 +79,49 @@ public:
   void EndDrawBatch() override;
   void End() override;
 
+  // Overlay without stalling Present. Drawing ImGui directly makes the game thread wait every
+  // frame for the UI thread (a few ms, more on slower PCs), so instead the UI thread records
+  // ImGui's output (`draw` runs ImGuiDrawer::Draw with a context that has no command list) and
+  // Present replays the latest recording, one frame old. A recording that would need a new
+  // texture (the font atlas) is refused and NeedsDirectDraw() asks for one direct draw instead.
+  template <typename DrawFn> void Capture(u32 rt_w, u32 rt_h, DrawFn &&draw) {
+    capture_thread_.store(true, std::memory_order_relaxed);
+    ReblueUIDrawContext ctx(rt_w, rt_h, nullptr, nullptr);
+    draw(ctx);
+    capture_thread_.store(false, std::memory_order_relaxed);
+  }
+  bool ReplayLatest(plume::RenderCommandList *cmd, plume::RenderFramebuffer *fb, u32 rt_w,
+                    u32 rt_h);
+  bool NeedsDirectDraw() const { return needs_direct_.load(std::memory_order_relaxed); }
+  void ClearCapture();
+
 private:
+  struct CapturedDraw {
+    u32 count, index_offset;
+    i32 base_vertex;
+    u32 tex_slot, sampler_slot;
+    u32 left, top, width, height;  // scissor, render target pixels
+  };
+  struct CapturedBatch {
+    std::vector<rex::ui::ImmediateVertex> vertices;
+    std::vector<u16> indices;
+    std::vector<CapturedDraw> draws;
+  };
+  struct Recording {
+    u32 rt_w = 0, rt_h = 0;
+    float coord_w = 0, coord_h = 0;
+    std::vector<CapturedBatch> batches;
+  };
+  void BindOverlayState(plume::RenderCommandList *cmd, plume::RenderFramebuffer *fb, u32 rt_w,
+                        u32 rt_h, float coord_w, float coord_h);
+
+  std::atomic<bool> capture_thread_{false};  // set while Capture runs (UI thread)
+  std::atomic<bool> needs_direct_{true};     // no usable recording yet
+  bool capturing_ = false;                   // between Begin and End of a recording
+  Recording building_;
+  std::mutex recording_mutex_;
+  std::shared_ptr<const Recording> latest_;
+
   bool TryInitDeviceResources(); // lazy GPU init, false if device not ready
 
   // Requires an open Present command list.
@@ -85,7 +130,7 @@ private:
                           std::unique_ptr<plume::RenderTextureView> &out_view,
                           u32 &out_slot);
 
-  bool resources_ready_ = false;
+  std::atomic<bool> resources_ready_{false};
   bool batch_open_ = false;
   plume::RenderCommandList *cmd_ = nullptr; // valid only between Begin/End
 

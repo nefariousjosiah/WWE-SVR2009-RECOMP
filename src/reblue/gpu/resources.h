@@ -69,6 +69,8 @@ struct GuestTexture {
   float resolveScale = 1.0f;
   u32 resolveLevel = 0;
   u32 resolveFace = 0;
+  // Xenos fetch swizzle textureView applies (0x688 = RGBA, the view a mirror is built with).
+  u32 viewSwizzle = 0x688;
   bool registered = false;
   bool pendingDestroy = false;
   bool pendingGPURead = false;

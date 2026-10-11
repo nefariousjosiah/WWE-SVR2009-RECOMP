@@ -9,6 +9,10 @@
  * @license   BSD 3-Clause License
  *            See LICENSE file in the project root for full license text.
  */
+#if defined(SVR_NATIVE_RENDERER)
+#include "svr_command_stream.h"
+#include "svr_frame_diag.h"
+#endif
 #include "gpu/frame.h"
 
 #include <atomic>
@@ -256,6 +260,9 @@ void Video::Present(GuestTexture *frontBuffer) {
   u32 texture_index = 0;
   {
     BD_CPU_ZONE("AcquireTexture");
+#if defined(SVR_NATIVE_RENDERER)
+    SvrDiagTimer acquire(SvrDiag::kAcquire);
+#endif
     if (!s.swap_chain->acquireTexture(
             s.acquire_semaphores[s.frame.load(std::memory_order_relaxed)].get(),
             &texture_index)) {
@@ -294,7 +301,11 @@ void Video::Present(GuestTexture *frontBuffer) {
   RecordPresentPass(s, rt, back, back_fb);
 
   const u32 cur = s.frame.load(std::memory_order_relaxed);
+#if defined(SVR_NATIVE_RENDERER)
+  SvrRecordingList(cur, s.command_lists[cur].get())->end();  // waits for threaded recording
+#else
   s.command_lists[cur]->end();
+#endif
   s.command_list_open = false;
 
   const plume::RenderCommandList *lists[] = {s.command_lists[cur].get()};
@@ -406,7 +417,11 @@ void Video::PresentOverlayFrame() {
       plume::RenderBarrierStage::GRAPHICS,
       plume::RenderTextureBarrier(back, plume::RenderTextureLayout::PRESENT));
 
+#if defined(SVR_NATIVE_RENDERER)
+  SvrRecordingList(cur, s.command_lists[cur].get())->end();  // waits for threaded recording
+#else
   s.command_lists[cur]->end();
+#endif
   s.command_list_open = false;
   const plume::RenderCommandList *lists[] = {s.command_lists[cur].get()};
   plume::RenderCommandSemaphore *waits[] = {s.acquire_semaphores[cur].get()};

@@ -44,6 +44,12 @@
 
 namespace bd::gpu {
 
+#if defined(SVR_NATIVE_RENDERER)
+// src/native/svr_pipeline_store.cpp: pipelines stored by earlier runs, and the store's writer.
+std::vector<PipelineState> SvrLoadPipelineStore();
+void SvrRecordPipeline(const PipelineState &state, u64 vs, u64 ps, u64 decl);
+#endif
+
 namespace {
 
 // std::vector (not a C array) so an empty include still compiles.
@@ -408,6 +414,10 @@ void RecordPipelineState(const PipelineState &state, u32 renderPassId,
 
   const u64 declHash =
       state.vertexDeclaration ? state.vertexDeclaration->hash : 0;
+#if defined(SVR_NATIVE_RENDERER)
+  // Store it so the next run precompiles it in the background (svr_pipeline_store.cpp).
+  SvrRecordPipeline(state, vsHash, psHash, declHash);
+#endif
   const bool inResidual =
       vsHash != 0 && InResidual(state, vsHash, psHash, declHash);
 
@@ -465,6 +475,15 @@ void ReplayBootCache() {
     else
       g_replayPending.push_back(entry);
   }
+#if defined(SVR_NATIVE_RENDERER)
+  // Pipelines earlier runs compiled on the render thread (svr_pipeline_store.cpp).
+  for (const auto &entry : SvrLoadPipelineStore()) {
+    if (TryResolveAndEnqueueLocked(entry))
+      ++immediate;
+    else
+      g_replayPending.push_back(entry);
+  }
+#endif
 }
 
 void FlushPSOCapture() {

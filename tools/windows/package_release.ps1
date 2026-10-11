@@ -18,6 +18,11 @@ if (-not (Test-Path "$Build\$Id.exe")) { throw "Build the game first: tools\wind
 if (-not (Select-String -Path "$Build\CMakeCache.txt" -Pattern "^SVR_NATIVE_RENDERER:BOOL=ON" -Quiet)) {
   throw "$Build is not a native-renderer build"
 }
+$BuildD3D12 = "$Build-d3d12"
+if (-not (Test-Path "$BuildD3D12\$Id.exe")) { throw "Build the Direct3D 12 program first: tools\windows\build.ps1" }
+if (-not (Select-String -Path "$BuildD3D12\CMakeCache.txt" -Pattern "^SVR_D3D12:BOOL=ON" -Quiet)) {
+  throw "$BuildD3D12 is not a Direct3D 12 build"
+}
 
 $Out = "$Root\dist\$Name-v$Version"
 if (Test-Path $Out) { Remove-Item $Out -Recurse -Force }
@@ -30,8 +35,17 @@ Copy the DLC package files from your own Xbox 360 (the files with long names lik
 this folder and start the game: they are installed into userdata the first time, and the DLC
 superstars are on the roster. No DLC is included with this download.
 "@ | Set-Content "$Out\dlc\PUT YOUR DLC HERE.txt" -Encoding ascii
-foreach ($f in "$Id.exe", "rexruntime.dll", "rexgpu-xenos.dll") { Copy-Item "$Build\$f" $Out }
+# Two programs (src/graphics_api.h): $Id.exe draws with Direct3D 12, and starts $Id`_vulkan.exe
+# instead under Proton (Steam Deck, Linux) or when the Graphics API setting says Vulkan.
+Copy-Item "$BuildD3D12\$Id.exe" "$Out\$Id.exe"
+Copy-Item "$Build\$Id.exe" "$Out\$($Id)_vulkan.exe"
+foreach ($f in "rexruntime.dll", "rexgpu-xenos.dll") { Copy-Item "$Build\$f" $Out }
+# Microsoft's shader compiler, for any Direct3D 12 shader variant without a prebuilt copy.
+foreach ($f in "dxcompiler.dll", "dxil.dll") { Copy-Item "$BuildD3D12\$f" $Out }
 Copy-Item "$Build\fonts" $Out -Recurse
+# Graphics pipelines the game uses (render states and shader hashes, no game data), recorded by
+# playing the build: precompiled in the background at startup instead of hitching mid-match.
+if (Test-Path "$Build\pipelines.bin") { Copy-Item "$Build\pipelines.bin" $Out }
 # Visual C++ runtime, app-local (Proton and PCs without the redistributable).
 foreach ($f in "msvcp140.dll", "msvcp140_atomic_wait.dll", "vcruntime140.dll", "vcruntime140_1.dll") {
   Copy-Item "$env:WINDIR\System32\$f" $Out
@@ -78,8 +92,10 @@ Linux / Steam Deck, through Proton
     Optional: bind the L4 back button to F1 in the game's Steam controller layout.
 
 Settings: press F1 in game (or Back + Start on a controller) for the settings menu: resolution
-up to 4K, fullscreen or window, 60 or 30 fps, screen shape, FPS counter, sound, keyboard
-controls. Saved in $Id.toml.
+up to 4K, graphics API, fullscreen or window, 60 or 30 fps, screen shape, FPS counter, sound,
+keyboard controls, CPU priority. Saved in $Id.toml.
+Graphics: $Id.exe draws with Direct3D 12 on Windows; on Steam Deck / Linux it starts
+$($Id)_vulkan.exe (Vulkan) by itself. Settings > Graphics API switches between them.
 Saves: the userdata folder (created on first start). If something goes wrong, send game.log.
 Updates: when a new version is out, the game says so at startup; install it from the settings
 menu (Update), only if you want to. Your saves, settings, DLC and disc image are kept, and your
@@ -122,6 +138,9 @@ $Notices = @{
   # The updater (src/updater.cpp).
   "third_party\rexglue-sdk\thirdparty\inja\third_party\include\nlohmann\LICENSE.MIT" = "nlohmann json (MIT).txt"
   "third_party\licenses\stb-LICENSE.txt" = "stb (MIT or public domain).txt"
+  # Direct3D 12: Microsoft's shader compiler (dxcompiler.dll) and the linked-shader cache (miniz).
+  "third_party\licenses\DirectXShaderCompiler-LICENSE.txt" = "DirectX Shader Compiler (NCSA).txt"
+  "third_party\reblue_thirdparty\miniz\LICENSE" = "miniz (public domain).txt"
 }
 foreach ($k in $Notices.Keys) { Copy-Item "$Root\$k" "$Out\licenses\$($Notices[$k])" }
 
