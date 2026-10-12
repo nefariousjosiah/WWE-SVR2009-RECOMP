@@ -181,7 +181,9 @@ public:
   // Restart-bound: read once when the device and its targets are built.
   i32 ShadowDimension() const { return shadowDimension_; }
   bool PSOPrecache() const { return psoPrecache_; }
-  bool GeometryGPUUpload() const { return geometryGPUUpload_; }
+  // Reads bd_geometry_gpu_upload directly: Init() (which adopts the cvars) is never called,
+  // so the cached member would ignore both the default and the config file.
+  bool GeometryGPUUpload() const;
   bool DRED() const { return dred_; }
   bool SceneColorR11G11B10() const { return sceneColorR11G11B10_; }
   i32 SuperSampling() const { return superSampling_; }
@@ -244,7 +246,7 @@ private:
   i32 fovOffset_ = 0;
   bool vsync_ = true;
   bool psoPrecache_ = true;
-  bool geometryGPUUpload_ = true;
+  bool geometryGPUUpload_ = false;
   bool dred_ = true;
   bool sceneColorR11G11B10_ = false;
 };

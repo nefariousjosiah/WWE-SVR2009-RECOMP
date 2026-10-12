@@ -199,6 +199,9 @@ void Settings::AdoptShadowDimension() {
 void Settings::AdoptPSOPrecache() {
   psoPrecache_ = REXCVAR_GET(bd_pso_precache);
 }
+bool Settings::GeometryGPUUpload() const {
+  return REXCVAR_GET(bd_geometry_gpu_upload);
+}
 void Settings::AdoptGeometryGPUUpload() {
   geometryGPUUpload_ = REXCVAR_GET(bd_geometry_gpu_upload);
 }
