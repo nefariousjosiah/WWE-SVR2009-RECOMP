@@ -198,18 +198,26 @@ void ReadDeviceRenderState(VideoState &s, u32 device_guest) {
   const u32 alpha_ref_bits = SvrRegister(device_guest, 0x210E);
   float alpha_ref;
   std::memcpy(&alpha_ref, &alpha_ref_bits, sizeof(alpha_ref));
+  //
+  // The comparison is made at 8-bit precision, as D3D9's integer ALPHAREF (0..255) intends: alpha
+  // counts as round(a * 255), so the threshold sits half a step below that step. An exact float
+  // compare fails on interpolation rounding: SvR 2010's Road to WrestleMania locker-room door and
+  // magazine test alpha >= 1.0 (ALPHAREF 255) with a constant vertex alpha of 1.0, and NVIDIA
+  // interpolates that constant to 0.99999994 at about half the pixels, which were discarded (the
+  // corridor behind showed through, speckled). AMD interpolates it to exactly 1.0.
   bool alpha_test = (color_control & 0x8u) != 0;
+  const float ref8 = std::round(std::clamp(alpha_ref, 0.0f, 1.0f) * 255.0f);
   float alpha_threshold = alpha_ref;
   if (alpha_test) {
     switch (color_control & 0x7u) {
     case 7: // ALWAYS
       alpha_test = false;
       break;
-    case 6: // GREATEREQUAL: clip(a - ref) as is
+    case 6: // GREATEREQUAL: round(a * 255) >= ref8
+      alpha_threshold = (ref8 - 0.5f) / 255.0f;
       break;
-    case 4: // GREATER; at least the smallest normal float, so ref 0 survives flush-to-zero
-      alpha_threshold = std::max(std::nextafter(alpha_ref, std::numeric_limits<float>::infinity()),
-                                 std::numeric_limits<float>::min());
+    case 4: // GREATER: round(a * 255) > ref8
+      alpha_threshold = (ref8 + 0.5f) / 255.0f;
       break;
     case 0: // NEVER
       alpha_threshold = std::numeric_limits<float>::infinity();

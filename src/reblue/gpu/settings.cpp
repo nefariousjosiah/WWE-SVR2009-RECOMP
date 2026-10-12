@@ -38,10 +38,13 @@ REXCVAR_DEFINE_BOOL(bd_pso_precache, true, kCvarGroup,
                     "Precompile pipelines during loads instead of at first "
                     "draw.");
 
-REXCVAR_DEFINE_BOOL(bd_geometry_gpu_upload, true, kCvarGroup,
+// Off by default: SvR on built-in AMD graphics on Windows (ROG Ally X, Ryzen laptops with
+// "AMD Radeon(TM) Graphics") crashed at the first frame with it on, in both Direct3D 12 and
+// Vulkan. On shared-memory GPUs UPLOAD is the same memory anyway, so the cost is negligible.
+REXCVAR_DEFINE_BOOL(bd_geometry_gpu_upload, false, kCvarGroup,
                     "Place static geometry in the GPU_UPLOAD heap when the "
-                    "device supports it. Off uses UPLOAD instead, costing the "
-                    "write-combine win on AMD. Requires restart.");
+                    "device supports it. Off (default) uses UPLOAD, as desktop "
+                    "graphics cards always do. Requires restart.");
 
 REXCVAR_DEFINE_BOOL(bd_dred, true, kCvarGroup,
                     "Record D3D12 auto-breadcrumbs and page-fault allocations "
