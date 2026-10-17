@@ -367,7 +367,7 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
     const std::string line1 = "Update available: version " + u->latest_version();
     const char* line2 = "Open Settings (F1, or Back + Start) to install it";
     ImFont* font = g_menu_font ? g_menu_font : ImGui::GetFont();
-    const float size1 = 24 * s, size2 = 18 * s;
+    const float size1 = 18 * s, size2 = 13 * s;
     const ImVec2 t1 = font->CalcTextSizeA(size1, FLT_MAX, 0.0f, line1.c_str());
     const ImVec2 t2 = font->CalcTextSizeA(size2, FLT_MAX, 0.0f, line2);
     const float pad = 16 * s;
@@ -509,7 +509,7 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
     const ImU32 dim = IM_COL32(150, 156, 172, 255);
     ImGui::GetBackgroundDrawList()->AddRectFilled(ImVec2(0, 0), io.DisplaySize, IM_COL32(0, 0, 0, 150));
 
-    const float width = 820 * s;
+    const float width = 900 * s;
     ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Always,
                             ImVec2(0.5f, 0.5f));
     ImGui::SetNextWindowSize(ImVec2(width, 0));
@@ -517,23 +517,23 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(30 * s, 26 * s));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
     ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(18, 21, 30, 245));
-    ImGui::PushFont(g_menu_font, 22 * s);
+    ImGui::PushFont(g_menu_font, 16 * s);
     constexpr ImGuiWindowFlags kFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
                                         ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoNav |
                                         ImGuiWindowFlags_AlwaysAutoResize;
     if (ImGui::Begin("##svr_settings_menu", nullptr, kFlags)) {
       ImDrawList* dl = ImGui::GetWindowDrawList();
-      ImGui::PushFont(g_menu_font, 34 * s);
-      ImGui::TextColored(ImColor(accent), "SETTINGS");
+      ImGui::PushFont(g_menu_font, 30 * s);
+      ImGui::TextColored(ImColor(IM_COL32(255, 255, 255, 255)), "SETTINGS");
       ImGui::PopFont();
-      ImGui::PushFont(g_menu_font, 18 * s);
+      ImGui::PushFont(g_menu_font, 13 * s);
       ImGui::TextColored(ImColor(dim), "%s", title_.c_str());
       ImGui::PopFont();
       ImGui::Dummy(ImVec2(0, 12 * s));
 
-      const float row_h = 48 * s;
+      const float row_h = 44 * s;
       const float inner = ImGui::GetContentRegionAvail().x;
-      const float value_x = 300 * s;
+      const float value_x = 340 * s;
       for (int i = 0; i < kRows; ++i) {
         const Row& row = Rows()[i];
         const ImVec2 p0 = ImGui::GetCursorScreenPos();
@@ -594,7 +594,7 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
       }
 
       ImGui::Dummy(ImVec2(0, 10 * s));
-      ImGui::PushFont(g_menu_font, 18 * s);
+      ImGui::PushFont(g_menu_font, 13 * s);
       ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(178, 184, 198, 255));
       ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + inner);
       const float hint_y = ImGui::GetCursorPosY();
@@ -606,7 +606,20 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
       ImGui::PopTextWrapPos();
       ImGui::PopStyleColor();
       ImGui::Dummy(ImVec2(0, 6 * s));
-      ImGui::TextColored(ImColor(dim), "Up / Down  choose      Left / Right  change      B or Esc  close");
+      ImGui::TextColored(ImColor(dim), "Up/Down choose   Left/Right change   B/Esc close");
+      ImGui::PopFont();
+      // The credit: a divider, then the line larger and with a drop shadow, centred.
+      ImGui::Dummy(ImVec2(0, 12 * s));
+      const ImVec2 line0 = ImGui::GetCursorScreenPos();
+      dl->AddLine(line0, ImVec2(line0.x + inner, line0.y), IM_COL32(255, 255, 255, 40), 1.5f * s);
+      ImGui::Dummy(ImVec2(0, 14 * s));
+      ImGui::PushFont(g_menu_font, 20 * s);
+      const char* credit = "PC port made by nefariousjosiah";
+      const ImVec2 cs = ImGui::CalcTextSize(credit);
+      const ImVec2 cp(ImGui::GetCursorScreenPos().x + (inner - cs.x) * 0.5f, ImGui::GetCursorScreenPos().y);
+      dl->AddText(ImVec2(cp.x + 2 * s, cp.y + 2 * s), IM_COL32(0, 0, 0, 200), credit);
+      dl->AddText(cp, IM_COL32(255, 255, 255, 255), credit);
+      ImGui::Dummy(ImVec2(inner, cs.y + 2 * s));
       ImGui::PopFont();
     }
     ImGui::End();

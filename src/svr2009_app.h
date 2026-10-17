@@ -230,6 +230,7 @@ class Svr2009App : public rex::ReXApp {
   void OnConfigureFonts(ImFontAtlas* atlas) override {
     auto path = rex::filesystem::GetExecutableFolder() / "fonts" / "PressStart2P-Regular.ttf";
     g_fps_counter_font = nullptr;
+    g_menu_font = nullptr;
     if (!std::filesystem::exists(path)) {
       REXLOG_WARN("FPS counter font not found: {}", path.string());
       return;
@@ -239,11 +240,9 @@ class Svr2009App : public rex::ReXApp {
     config.OversampleV = 1;
     config.PixelSnapH = true;
     g_fps_counter_font = atlas->AddFontFromFileTTF(path.string().c_str(), 20.0f, &config);
-    // Roboto for the settings menu (sized per use; ImGui 1.92 scales fonts dynamically).
-    auto menu_font = rex::filesystem::GetExecutableFolder() / "fonts" / "Roboto-Medium.ttf";
-    g_menu_font = std::filesystem::exists(menu_font)
-                      ? atlas->AddFontFromFileTTF(menu_font.string().c_str(), 22.0f)
-                      : nullptr;
+    // The settings menu uses the same pixel font (sized per use; ImGui 1.92 scales fonts
+    // dynamically).
+    g_menu_font = atlas->AddFontFromFileTTF(path.string().c_str(), 16.0f, &config);
   }
 
   // FPS counter in the corner (on by default, F2 toggles), and the same numbers for the F3 overlay.
