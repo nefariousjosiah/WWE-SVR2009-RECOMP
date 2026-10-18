@@ -1,3 +1,63 @@
+diff --git a/include/rex/audio/music_player.h b/include/rex/audio/music_player.h
+new file mode 100644
+index 0000000..6a829d8
+--- /dev/null
++++ b/include/rex/audio/music_player.h
+@@ -0,0 +1,54 @@
++/**
++ * @file        audio/music_player.h
++ * @brief       Plays the player's own music files (the console's music library stand-in) for the
++ *              XMP app: MP3 and WAV, on an audio stream of its own, a playlist at a time.
++ *
++ * @license     BSD 3-Clause License
++ *              See LICENSE file in the project root for full license text.
++ */
++
++#pragma once
++
++#include <condition_variable>
++#include <cstdint>
++#include <filesystem>
++#include <mutex>
++#include <thread>
++#include <vector>
++
++namespace rex::audio {
++
++class MusicPlayer {
++ public:
++  static MusicPlayer& Get();
++
++  // Starts the playlist from its first song, replacing whatever was playing. It loops until
++  // Stop().
++  void Play(std::vector<std::filesystem::path> files);
++  void Stop();
++  void Pause();
++  void Resume();
++  void Next();
++  void Previous();
++  // 0..1, the XMP volume the game sets. audio_mute silences it like the rest of the game.
++  void SetVolume(float volume);
++
++  ~MusicPlayer();
++
++ private:
++  MusicPlayer() = default;
++  void Run();
++
++  std::mutex mutex_;
++  std::condition_variable cv_;
++  std::thread thread_;
++  std::vector<std::filesystem::path> files_;
++  size_t index_ = 0;
++  uint64_t generation_ = 0;  // bumped by every change of song, so the worker drops the current one
++  bool playing_ = false;
++  bool paused_ = false;
++  bool quit_ = false;
++  float volume_ = 1.0f;
++};
++
++}  // namespace rex::audio
 diff --git a/include/rex/audio/xma/context.h b/include/rex/audio/xma/context.h
 index 8426798..93397ed 100644
 --- a/include/rex/audio/xma/context.h
@@ -187,6 +247,57 @@ index 1cb3faa..f188cde 100644
    std::vector<std::unique_ptr<InputDriver>> drivers_;
  
    std::unique_ptr<DeviceAssignment> assignment_;
+diff --git a/include/rex/kernel/xam/apps/xmp_app.h b/include/rex/kernel/xam/apps/xmp_app.h
+index d939d62..ac8fe12 100644
+--- a/include/rex/kernel/xam/apps/xmp_app.h
++++ b/include/rex/kernel/xam/apps/xmp_app.h
+@@ -10,6 +10,7 @@
+  * @modified    Tom Clay, 2026 - Adapted for ReXGlue runtime
+  */
+ 
++#include <filesystem>
+ #include <memory>
+ #include <string>
+ #include <unordered_map>
+@@ -17,6 +18,7 @@
+ 
+ #include <rex/system/kernel_state.h>
+ #include <rex/system/xam/app_manager.h>
++#include <rex/system/xenumerator.h>
+ #include <rex/thread/mutex.h>
+ 
+ namespace rex {
+@@ -72,6 +74,15 @@ class XmpApp : public system::xam::App {
+ 
+   explicit XmpApp(system::KernelState* kernel_state);
+ 
++  // The one instance (the app manager owns it), for XamCreateEnumeratorHandle.
++  static XmpApp* instance();
++
++  // The user's own music, standing in for the console's music library: each folder in
++  // <exe>/music is a playlist of the songs in it (loose files there are one more playlist).
++  // Entries are the 820-byte records XMPCreateUserPlaylistEnumerator returns (name at +572).
++  static constexpr uint32_t kUserPlaylistItemSize = 820;
++  void WriteUserPlaylistItems(system::XStaticUntypedEnumerator* enumerator);
++
+   X_HRESULT XMPGetStatus(uint32_t status_ptr);
+ 
+   X_HRESULT XMPCreateTitlePlaylist(uint32_t songs_ptr, uint32_t song_count,
+@@ -96,6 +107,14 @@ class XmpApp : public system::xam::App {
+ 
+   void OnStateChanged();
+ 
++  struct UserPlaylist {
++    std::u16string name;
++    std::vector<std::filesystem::path> files;
++  };
++  void ScanUserPlaylists();
++  std::vector<UserPlaylist> user_playlists_;
++  bool user_playlist_playing_ = false;  // MusicPlayer has it, not a title playlist
++
+   State state_;
+   PlaybackClient playback_client_;
+   PlaybackMode playback_mode_;
 diff --git a/include/rex/ui/d3d12/d3d12_util.h b/include/rex/ui/d3d12/d3d12_util.h
 index 364690d..0b88d80 100644
 --- a/include/rex/ui/d3d12/d3d12_util.h
@@ -202,6 +313,486 @@ index 364690d..0b88d80 100644
 +
  }  // namespace util
  }  // namespace rex::ui::d3d12
+diff --git a/src/audio/CMakeLists.txt b/src/audio/CMakeLists.txt
+index d55f16a..db50bed 100644
+--- a/src/audio/CMakeLists.txt
++++ b/src/audio/CMakeLists.txt
+@@ -6,6 +6,7 @@ add_library(rexaudio OBJECT
+     audio_driver.cpp
+     audio_system.cpp
+     downmix.cpp
++    music_player.cpp
+     xma_context.cpp
+     xma_decoder.cpp
+     xma_register_file.cpp
+diff --git a/src/audio/music_player.cpp b/src/audio/music_player.cpp
+new file mode 100644
+index 0000000..479790d
+--- /dev/null
++++ b/src/audio/music_player.cpp
+@@ -0,0 +1,462 @@
++/**
++ * @file        audio/music_player.cpp
++ * @brief       The player's own music for the XMP app (see music_player.h).
++ *
++ * @license     BSD 3-Clause License
++ *              See LICENSE file in the project root for full license text.
++ */
++
++#include <rex/audio/music_player.h>
++
++#include <algorithm>
++#include <chrono>
++#include <cstring>
++#include <fstream>
++#include <memory>
++
++#include <rex/cvar.h>
++#include <rex/logging.h>
++#include <SDL3/SDL.h>
++
++extern "C" {
++#include <libavcodec/avcodec.h>
++#include <libavutil/frame.h>
++}
++
++REXCVAR_DECLARE(bool, audio_mute);
++
++namespace rex::audio {
++
++namespace {
++
++std::vector<uint8_t> ReadWholeFile(const std::filesystem::path& path) {
++  std::ifstream in(path, std::ios::binary);
++  if (!in)
++    return {};
++  return std::vector<uint8_t>(std::istreambuf_iterator<char>(in), {});
++}
++
++// Interleaved float samples, a block at a time.
++class Decoder {
++ public:
++  virtual ~Decoder() = default;
++  // Appends samples to `out`; false at the end of the file.
++  virtual bool Read(std::vector<float>& out) = 0;
++  int rate = 0;
++  int channels = 0;
++};
++
++class Mp3Decoder final : public Decoder {
++ public:
++  ~Mp3Decoder() override {
++    av_frame_free(&frame_);
++    av_packet_free(&packet_);
++    if (parser_)
++      av_parser_close(parser_);
++    avcodec_free_context(&context_);
++  }
++
++  bool Open(const std::filesystem::path& path) {
++    data_ = ReadWholeFile(path);
++    // An ID3v2 tag in front: its size is a 28-bit "syncsafe" number, plus a footer if flagged.
++    if (data_.size() > 10 && std::memcmp(data_.data(), "ID3", 3) == 0) {
++      size_t size = (size_t(data_[6] & 0x7F) << 21) | (size_t(data_[7] & 0x7F) << 14) |
++                    (size_t(data_[8] & 0x7F) << 7) | size_t(data_[9] & 0x7F);
++      size += 10 + ((data_[5] & 0x10) ? 10 : 0);
++      pos_ = std::min(size, data_.size());
++    }
++    const AVCodec* codec = avcodec_find_decoder(AV_CODEC_ID_MP3);
++    if (!codec || data_.empty())
++      return false;
++    context_ = avcodec_alloc_context3(codec);
++    parser_ = av_parser_init(AV_CODEC_ID_MP3);
++    packet_ = av_packet_alloc();
++    frame_ = av_frame_alloc();
++    if (!context_ || !parser_ || !packet_ || !frame_ ||
++        avcodec_open2(context_, codec, nullptr) < 0)
++      return false;
++    // Decode the first frame now, for the rate and channel count.
++    return Read(first_) && rate > 0 && channels > 0;
++  }
++
++  bool Read(std::vector<float>& out) override {
++    if (!first_.empty()) {
++      out.insert(out.end(), first_.begin(), first_.end());
++      first_.clear();
++      return true;
++    }
++    while (true) {
++      const int received = avcodec_receive_frame(context_, frame_);
++      if (received == 0) {
++        Convert(out);
++        return true;
++      }
++      if (received == AVERROR_EOF)
++        return false;
++      if (pos_ < data_.size()) {
++        uint8_t* data = nullptr;
++        int size = 0;
++        const int used = av_parser_parse2(
++            parser_, context_, &data, &size, data_.data() + pos_,
++            int(std::min<size_t>(data_.size() - pos_, 4096)), AV_NOPTS_VALUE, AV_NOPTS_VALUE, 0);
++        if (used < 0)
++          return false;
++        pos_ += size_t(used);
++        Send(data, size);
++      } else if (!flushed_) {
++        uint8_t* data = nullptr;
++        int size = 0;
++        av_parser_parse2(parser_, context_, &data, &size, nullptr, 0, AV_NOPTS_VALUE,
++                         AV_NOPTS_VALUE, 0);
++        Send(data, size);
++        avcodec_send_packet(context_, nullptr);
++        flushed_ = true;
++      } else {
++        return false;
++      }
++    }
++  }
++
++ private:
++  void Send(uint8_t* data, int size) {
++    if (size <= 0)
++      return;
++    packet_->data = data;
++    packet_->size = size;
++    avcodec_send_packet(context_, packet_);  // a damaged frame is skipped
++  }
++
++  void Convert(std::vector<float>& out) {
++    const int ch = frame_->channels;
++    const int n = frame_->nb_samples;
++    rate = frame_->sample_rate;
++    channels = ch;
++    const size_t base = out.size();
++    out.resize(base + size_t(n) * size_t(ch));
++    float* dst = out.data() + base;
++    switch (frame_->format) {
++      case AV_SAMPLE_FMT_FLTP:
++        for (int c = 0; c < ch; ++c) {
++          const float* src = reinterpret_cast<const float*>(frame_->extended_data[c]);
++          for (int i = 0; i < n; ++i)
++            dst[i * ch + c] = src[i];
++        }
++        break;
++      case AV_SAMPLE_FMT_FLT:
++        std::memcpy(dst, frame_->extended_data[0], size_t(n) * size_t(ch) * sizeof(float));
++        break;
++      case AV_SAMPLE_FMT_S16P:
++        for (int c = 0; c < ch; ++c) {
++          const int16_t* src = reinterpret_cast<const int16_t*>(frame_->extended_data[c]);
++          for (int i = 0; i < n; ++i)
++            dst[i * ch + c] = src[i] / 32768.0f;
++        }
++        break;
++      case AV_SAMPLE_FMT_S16: {
++        const int16_t* src = reinterpret_cast<const int16_t*>(frame_->extended_data[0]);
++        for (int i = 0; i < n * ch; ++i)
++          dst[i] = src[i] / 32768.0f;
++        break;
++      }
++      default:
++        std::fill(dst, dst + size_t(n) * size_t(ch), 0.0f);
++        break;
++    }
++  }
++
++  std::vector<uint8_t> data_;
++  size_t pos_ = 0;
++  bool flushed_ = false;
++  std::vector<float> first_;
++  AVCodecContext* context_ = nullptr;
++  AVCodecParserContext* parser_ = nullptr;
++  AVPacket* packet_ = nullptr;
++  AVFrame* frame_ = nullptr;
++};
++
++// RIFF WAVE: PCM 8/16/24/32-bit integer or 32-bit float.
++class WavDecoder final : public Decoder {
++ public:
++  bool Open(const std::filesystem::path& path) {
++    data_ = ReadWholeFile(path);
++    if (data_.size() < 12 || std::memcmp(data_.data(), "RIFF", 4) != 0 ||
++        std::memcmp(data_.data() + 8, "WAVE", 4) != 0)
++      return false;
++    size_t pos = 12;
++    uint16_t tag = 0;
++    while (pos + 8 <= data_.size()) {
++      const uint32_t size = Le32(pos + 4);
++      if (std::memcmp(data_.data() + pos, "fmt ", 4) == 0 && size >= 16 &&
++          pos + 8 + 16 <= data_.size()) {
++        tag = Le16(pos + 8);
++        channels = Le16(pos + 10);
++        rate = int(Le32(pos + 12));
++        bits_ = Le16(pos + 22);
++        if (tag == 0xFFFE && size >= 26)  // WAVE_FORMAT_EXTENSIBLE: the subformat's first word
++          tag = Le16(pos + 8 + 24);
++      } else if (std::memcmp(data_.data() + pos, "data", 4) == 0) {
++        pos_ = pos + 8;
++        end_ = std::min<size_t>(data_.size(), pos_ + size);
++        break;
++      }
++      pos += 8 + size + (size & 1);
++    }
++    float_ = tag == 3;
++    const bool known = (tag == 1 && (bits_ == 8 || bits_ == 16 || bits_ == 24 || bits_ == 32)) ||
++                       (float_ && bits_ == 32);
++    return known && channels > 0 && rate > 0 && pos_ && end_ > pos_;
++  }
++
++  bool Read(std::vector<float>& out) override {
++    const size_t frame_bytes = size_t(channels) * (bits_ / 8);
++    const size_t frames = std::min<size_t>(4096, (end_ - pos_) / frame_bytes);
++    if (!frames)
++      return false;
++    const size_t samples = frames * size_t(channels);
++    const size_t base = out.size();
++    out.resize(base + samples);
++    const uint8_t* p = data_.data() + pos_;
++    for (size_t i = 0; i < samples; ++i) {
++      float v = 0.0f;
++      if (float_) {
++        std::memcpy(&v, p + i * 4, 4);
++      } else if (bits_ == 8) {
++        v = (int(p[i]) - 128) / 128.0f;
++      } else if (bits_ == 16) {
++        v = int16_t(p[i * 2] | (p[i * 2 + 1] << 8)) / 32768.0f;
++      } else if (bits_ == 24) {
++        const int32_t s = (p[i * 3] << 8) | (p[i * 3 + 1] << 16) | (p[i * 3 + 2] << 24);
++        v = (s >> 8) / 8388608.0f;
++      } else {
++        int32_t s;
++        std::memcpy(&s, p + i * 4, 4);
++        v = s / 2147483648.0f;
++      }
++      out[base + i] = v;
++    }
++    pos_ += frames * frame_bytes;
++    return true;
++  }
++
++ private:
++  uint16_t Le16(size_t at) const { return uint16_t(data_[at] | (data_[at + 1] << 8)); }
++  uint32_t Le32(size_t at) const {
++    return uint32_t(data_[at]) | (uint32_t(data_[at + 1]) << 8) | (uint32_t(data_[at + 2]) << 16) |
++           (uint32_t(data_[at + 3]) << 24);
++  }
++
++  std::vector<uint8_t> data_;
++  size_t pos_ = 0;
++  size_t end_ = 0;
++  uint16_t bits_ = 0;
++  bool float_ = false;
++};
++
++std::unique_ptr<Decoder> OpenDecoder(const std::filesystem::path& path) {
++  std::string ext = path.extension().string();
++  std::transform(ext.begin(), ext.end(), ext.begin(),
++                 [](unsigned char c) { return char(std::tolower(c)); });
++  if (ext == ".wav") {
++    auto d = std::make_unique<WavDecoder>();
++    if (d->Open(path))
++      return d;
++  } else {
++    auto d = std::make_unique<Mp3Decoder>();
++    if (d->Open(path))
++      return d;
++  }
++  return nullptr;
++}
++
++}  // namespace
++
++MusicPlayer& MusicPlayer::Get() {
++  // Never destroyed: the process hard-exits, and SDL may be gone by static destruction.
++  static MusicPlayer* player = new MusicPlayer();
++  return *player;
++}
++
++MusicPlayer::~MusicPlayer() {
++  {
++    std::lock_guard lock(mutex_);
++    quit_ = true;
++  }
++  cv_.notify_all();
++  if (thread_.joinable())
++    thread_.join();
++}
++
++void MusicPlayer::Play(std::vector<std::filesystem::path> files) {
++  {
++    std::lock_guard lock(mutex_);
++    files_ = std::move(files);
++    index_ = 0;
++    playing_ = !files_.empty();
++    paused_ = false;
++    ++generation_;
++    if (!thread_.joinable())
++      thread_ = std::thread([this] { Run(); });
++  }
++  cv_.notify_all();
++}
++
++void MusicPlayer::Stop() {
++  {
++    std::lock_guard lock(mutex_);
++    playing_ = false;
++    paused_ = false;
++    ++generation_;
++  }
++  cv_.notify_all();
++}
++
++void MusicPlayer::Pause() {
++  std::lock_guard lock(mutex_);
++  paused_ = playing_;
++}
++
++void MusicPlayer::Resume() {
++  {
++    std::lock_guard lock(mutex_);
++    paused_ = false;
++  }
++  cv_.notify_all();
++}
++
++void MusicPlayer::Next() {
++  {
++    std::lock_guard lock(mutex_);
++    if (files_.empty())
++      return;
++    index_ = (index_ + 1) % files_.size();
++    playing_ = true;
++    paused_ = false;
++    ++generation_;
++  }
++  cv_.notify_all();
++}
++
++void MusicPlayer::Previous() {
++  {
++    std::lock_guard lock(mutex_);
++    if (files_.empty())
++      return;
++    index_ = (index_ + files_.size() - 1) % files_.size();
++    playing_ = true;
++    paused_ = false;
++    ++generation_;
++  }
++  cv_.notify_all();
++}
++
++void MusicPlayer::SetVolume(float volume) {
++  std::lock_guard lock(mutex_);
++  volume_ = std::clamp(volume, 0.0f, 1.0f);
++}
++
++void MusicPlayer::Run() {
++  SDL_AudioStream* stream = nullptr;
++  SDL_AudioSpec current{};
++  size_t failures = 0;
++  std::unique_lock lock(mutex_);
++  while (!quit_) {
++    cv_.wait(lock, [this] { return quit_ || (playing_ && !files_.empty()); });
++    if (quit_)
++      break;
++    const uint64_t generation = generation_;
++    const std::filesystem::path path = files_[index_ % files_.size()];
++    const size_t count = files_.size();
++    lock.unlock();
++
++    std::unique_ptr<Decoder> decoder = OpenDecoder(path);
++    if (!decoder) {
++      REXAPU_WARN("Music: can't play {} (MP3 and WAV are supported)", path.string());
++      lock.lock();
++      if (generation == generation_) {
++        // Skip it; a playlist where nothing plays stops instead of spinning.
++        if (++failures >= count) {
++          failures = 0;
++          playing_ = false;
++        } else {
++          index_ = (index_ + 1) % files_.size();
++        }
++      }
++      continue;
++    }
++    failures = 0;
++    REXAPU_INFO("Music: playing {} ({} Hz, {} ch)", path.filename().string(), decoder->rate,
++                decoder->channels);
++
++    const SDL_AudioSpec spec{SDL_AUDIO_F32, decoder->channels, decoder->rate};
++    if (!stream) {
++      if (!SDL_InitSubSystem(SDL_INIT_AUDIO))
++        REXAPU_ERROR("Music: SDL audio init failed: {}", SDL_GetError());
++      stream = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, nullptr, nullptr);
++      if (!stream) {
++        REXAPU_ERROR("Music: can't open an audio stream: {}", SDL_GetError());
++        lock.lock();
++        playing_ = false;
++        continue;
++      }
++      current = spec;
++      SDL_ResumeAudioStreamDevice(stream);
++    } else if (spec.channels != current.channels || spec.freq != current.freq) {
++      // Let the previous song finish before the input format changes.
++      while (SDL_GetAudioStreamQueued(stream) > 0) {
++        {
++          std::lock_guard check(mutex_);
++          if (quit_ || generation != generation_)
++            break;
++        }
++        std::this_thread::sleep_for(std::chrono::milliseconds(5));
++      }
++      SDL_SetAudioStreamFormat(stream, &spec, nullptr);
++      current = spec;
++    }
++
++    // About a quarter of a second queued at a time, so stop / pause / next take effect quickly.
++    const int high_water = decoder->rate * decoder->channels * int(sizeof(float)) / 4;
++    std::vector<float> samples;
++    bool finished = false;
++    while (true) {
++      float gain;
++      {
++        std::unique_lock check(mutex_);
++        if (quit_ || generation != generation_)
++          break;
++        if (paused_) {
++          SDL_PauseAudioStreamDevice(stream);
++          cv_.wait(check, [&] { return quit_ || generation != generation_ || !paused_; });
++          if (!quit_ && generation == generation_)
++            SDL_ResumeAudioStreamDevice(stream);
++          continue;
++        }
++        gain = REXCVAR_GET(audio_mute) ? 0.0f : volume_;
++      }
++      SDL_SetAudioStreamGain(stream, gain);
++      if (SDL_GetAudioStreamQueued(stream) > high_water) {
++        std::this_thread::sleep_for(std::chrono::milliseconds(10));
++        continue;
++      }
++      samples.clear();
++      if (!decoder->Read(samples)) {
++        finished = true;
++        break;
++      }
++      SDL_PutAudioStreamData(stream, samples.data(), int(samples.size() * sizeof(float)));
++    }
++
++    lock.lock();
++    if (finished && generation == generation_) {
++      index_ = (index_ + 1) % files_.size();  // on to the next song, the playlist loops
++    } else if (generation != generation_) {
++      SDL_ClearAudioStream(stream);  // stopped, skipped, or another playlist: cut it now
++      SDL_ResumeAudioStreamDevice(stream);
++    }
++  }
++  lock.unlock();
++  if (stream)
++    SDL_DestroyAudioStream(stream);
++}
++
++}  // namespace rex::audio
 diff --git a/src/audio/xma_context.cpp b/src/audio/xma_context.cpp
 index 11b83be..ae4b635 100644
 --- a/src/audio/xma_context.cpp
@@ -947,23 +1538,105 @@ index 813bb1c..cc49175 100644
      return X_ERROR_DEVICE_NOT_CONNECTED;
    }
 diff --git a/src/kernel/xam/apps/xmp_app.cpp b/src/kernel/xam/apps/xmp_app.cpp
-index a5e9088..27a023d 100644
+index a5e9088..97c4bb9 100644
 --- a/src/kernel/xam/apps/xmp_app.cpp
 +++ b/src/kernel/xam/apps/xmp_app.cpp
-@@ -9,6 +9,9 @@
+@@ -9,6 +9,14 @@
   * @modified    Tom Clay, 2026 - Adapted for ReXGlue runtime
   */
  
 +#include <chrono>
 +#include <cstdint>
 +
++#include <algorithm>
++#include <cwctype>
++
++#include <rex/audio/music_player.h>
++#include <rex/filesystem.h>
  #include <rex/kernel/xam/apps/xmp_app.h>
  #include <rex/logging.h>
  #include <rex/system/xthread.h>
-@@ -35,8 +38,27 @@ XmpApp::XmpApp(KernelState* kernel_state)
-       next_playlist_handle_(1),
-       next_song_handle_(1) {}
+@@ -22,6 +30,12 @@ using namespace rex::system::xam;
+ namespace apps {
+ using namespace rex::system;
  
++namespace {
++XmpApp* g_xmp_app = nullptr;
++}  // namespace
++
++XmpApp* XmpApp::instance() { return g_xmp_app; }
++
+ XmpApp::XmpApp(KernelState* kernel_state)
+     : App(kernel_state, 0xFA),
+       state_(State::kIdle),
+@@ -33,10 +47,90 @@ XmpApp::XmpApp(KernelState* kernel_state)
+       active_playlist_(nullptr),
+       active_song_index_(0),
+       next_playlist_handle_(1),
+-      next_song_handle_(1) {}
++      next_song_handle_(1) {
++  g_xmp_app = this;
++}
++
++namespace {
++bool IsMusicFile(const std::filesystem::path& path) {
++  std::string ext = path.extension().string();
++  std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return char(std::tolower(c)); });
++  return ext == ".mp3" || ext == ".wav";
++}
++std::vector<std::filesystem::path> MusicFilesIn(const std::filesystem::path& dir) {
++  std::vector<std::filesystem::path> files;
++  std::error_code ec;
++  for (const auto& entry : std::filesystem::directory_iterator(dir, ec))
++    if (entry.is_regular_file(ec) && IsMusicFile(entry.path()))
++      files.push_back(entry.path());
++  std::sort(files.begin(), files.end());
++  return files;
++}
++// Stable id for a playlist (its folder name), so a saved choice still finds it after other
++// folders come or go.
++uint32_t PlaylistId(const std::u16string& name) {
++  uint32_t h = 2166136261u;
++  for (char16_t c : name)
++    h = (h ^ uint32_t(c)) * 16777619u;
++  return h;
++}
++}  // namespace
++
++void XmpApp::ScanUserPlaylists() {
++  user_playlists_.clear();
++  const auto root = rex::filesystem::GetExecutableFolder() / "music";
++  std::error_code ec;
++  std::vector<std::filesystem::path> dirs;
++  for (const auto& entry : std::filesystem::directory_iterator(root, ec))
++    if (entry.is_directory(ec))
++      dirs.push_back(entry.path());
++  std::sort(dirs.begin(), dirs.end());
++  for (const auto& dir : dirs) {
++    auto files = MusicFilesIn(dir);
++    if (!files.empty())
++      user_playlists_.push_back({dir.filename().u16string(), std::move(files)});
++  }
++  if (auto loose = MusicFilesIn(root); !loose.empty())
++    user_playlists_.push_back({u"Music", std::move(loose)});
++  REXKRNL_INFO("XMP: {} user playlist(s) in {}", user_playlists_.size(), root.string());
++}
++
++void XmpApp::WriteUserPlaylistItems(XStaticUntypedEnumerator* enumerator) {
++  auto global_lock = global_critical_region_.Acquire();
++  ScanUserPlaylists();
++  for (uint32_t i = 0; i < user_playlists_.size(); ++i) {
++    uint8_t* item = enumerator->AppendItem();
++    std::memset(item, 0, kUserPlaylistItemSize);
++    // Our own reference to the playlist (the game hands the record back to play it).
++    memory::store_and_swap<uint32_t>(item + 0, 0x52585031);  // 'RXP1'
++    memory::store_and_swap<uint32_t>(item + 4, i);
++    memory::store_and_swap<uint32_t>(item + 8, PlaylistId(user_playlists_[i].name));
++    std::u16string name = user_playlists_[i].name.substr(0, 123);
++    memory::store_and_swap<std::u16string>(item + 572, name);
++  }
++}
++
 +namespace {
 +
 +// The status/controller queries below sleep on non-main threads, for games that poll them in a
@@ -982,14 +1655,76 @@ index a5e9088..27a023d 100644
 +}
 +
 +}  // namespace
-+
+ 
  X_HRESULT XmpApp::XMPGetStatus(uint32_t state_ptr) {
 -  if (!XThread::GetCurrentThread()->main_thread()) {
 +  if (!XThread::GetCurrentThread()->main_thread() && IsHammeringXmp()) {
      // Some stupid games will hammer this on a thread - induce a delay
      // here to keep from starving real threads.
      rex::thread::Sleep(std::chrono::milliseconds(1));
-@@ -408,7 +430,7 @@ X_HRESULT XmpApp::DispatchMessageSync(uint32_t message, uint32_t buffer_ptr,
+@@ -149,6 +243,8 @@ X_HRESULT XmpApp::XMPContinue() {
+   if (state_ == State::kPaused) {
+     state_ = State::kPlaying;
+   }
++  if (user_playlist_playing_)
++    rex::audio::MusicPlayer::Get().Resume();
+   OnStateChanged();
+   return X_E_SUCCESS;
+ }
+@@ -157,6 +253,10 @@ X_HRESULT XmpApp::XMPStop(uint32_t unk) {
+   assert_zero(unk);
+   REXKRNL_DEBUG("XMPStop({:08X})", unk);
+   active_playlist_ = nullptr;  // ?
++  if (user_playlist_playing_) {
++    rex::audio::MusicPlayer::Get().Stop();
++    user_playlist_playing_ = false;
++  }
+   active_song_index_ = 0;
+   state_ = State::kIdle;
+   OnStateChanged();
+@@ -168,12 +268,20 @@ X_HRESULT XmpApp::XMPPause() {
+   if (state_ == State::kPlaying) {
+     state_ = State::kPaused;
+   }
++  if (user_playlist_playing_)
++    rex::audio::MusicPlayer::Get().Pause();
+   OnStateChanged();
+   return X_E_SUCCESS;
+ }
+ 
+ X_HRESULT XmpApp::XMPNext() {
+   REXKRNL_DEBUG("XMPNext()");
++  if (user_playlist_playing_) {
++    rex::audio::MusicPlayer::Get().Next();
++    state_ = State::kPlaying;
++    OnStateChanged();
++    return X_E_SUCCESS;
++  }
+   if (!active_playlist_) {
+     return X_E_NOTFOUND;
+   }
+@@ -185,6 +293,12 @@ X_HRESULT XmpApp::XMPNext() {
+ 
+ X_HRESULT XmpApp::XMPPrevious() {
+   REXKRNL_DEBUG("XMPPrevious()");
++  if (user_playlist_playing_) {
++    rex::audio::MusicPlayer::Get().Previous();
++    state_ = State::kPlaying;
++    OnStateChanged();
++    return X_E_SUCCESS;
++  }
+   if (!active_playlist_) {
+     return X_E_NOTFOUND;
+   }
+@@ -298,6 +412,7 @@ X_HRESULT XmpApp::DispatchMessageSync(uint32_t message, uint32_t buffer_ptr,
+       assert_true(args->xmp_client == 0x00000002);
+       REXKRNL_DEBUG("XMPSetVolume({:g})", float(args->value));
+       volume_ = args->value;
++      rex::audio::MusicPlayer::Get().SetVolume(volume_);
+       return X_E_SUCCESS;
+     }
+     case 0x0007000D: {
+@@ -408,7 +523,7 @@ X_HRESULT XmpApp::DispatchMessageSync(uint32_t message, uint32_t buffer_ptr,
        memory::store_and_swap<uint32_t>(memory_->TranslateVirtual(args->controller_ptr), 0);
        memory::store_and_swap<uint32_t>(memory_->TranslateVirtual(args->locked_ptr), 0);
  
@@ -998,6 +1733,58 @@ index a5e9088..27a023d 100644
          // Atrain spawns a thread 82437FD0 to call this in a tight loop forever.
          rex::thread::Sleep(std::chrono::milliseconds(10));
        }
+@@ -460,6 +575,51 @@ X_HRESULT XmpApp::DispatchMessageSync(uint32_t message, uint32_t buffer_ptr,
+                                        4 + uint32_t(args->song_count) * 128);
+       return X_E_SUCCESS;
+     }
++    case 0x00070025: {
++      // XMPCreateUserPlaylistEnumerator, after XamCreateEnumeratorHandle: the list is
++      // already in the enumerator.
++      REXKRNL_DEBUG("XMPCreateUserPlaylistEnumerator({:08X}, {})", buffer_ptr, buffer_length);
++      return X_E_SUCCESS;
++    }
++    case 0x00070027: {
++      // The user playlist enumerator closing.
++      return X_E_SUCCESS;
++    }
++    case 0x0007003B: {
++      // Play a user playlist: { xmp_client, the 820-byte record from the enumerator }.
++      const uint8_t* args = memory_->TranslateVirtual<const uint8_t*>(buffer_ptr);
++      const uint32_t magic = memory::load_and_swap<uint32_t>(args + 4);
++      const uint32_t index = memory::load_and_swap<uint32_t>(args + 8);
++      const uint32_t id = memory::load_and_swap<uint32_t>(args + 12);
++      std::vector<std::filesystem::path> files;
++      {
++        auto global_lock = global_critical_region_.Acquire();
++        if (magic == 0x52585031) {
++          // A saved choice may be played straight after a restart, before any listing.
++          for (int pass = 0; pass < 2 && files.empty(); ++pass) {
++            if (pass)
++              ScanUserPlaylists();
++            for (const auto& playlist : user_playlists_)
++              if (PlaylistId(playlist.name) == id)
++                files = playlist.files;
++          }
++          if (files.empty() && index < user_playlists_.size())
++            files = user_playlists_[index].files;
++        }
++      }
++      if (files.empty()) {
++        REXKRNL_WARN("XMPPlayUserPlaylist: unknown playlist {} (magic {:08X})", index, magic);
++        return X_E_NOTFOUND;
++      }
++      REXKRNL_INFO("XMPPlayUserPlaylist: playlist {} ({} songs)", index, files.size());
++      active_playlist_ = nullptr;
++      user_playlist_playing_ = true;
++      rex::audio::MusicPlayer::Get().SetVolume(volume_);
++      rex::audio::MusicPlayer::Get().Play(std::move(files));
++      state_ = State::kPlaying;
++      OnStateChanged();
++      return X_E_SUCCESS;
++    }
+     case 0x0007003D: {
+       // XMPCaptureOutput - not sure how this works :/
+       REXKRNL_DEBUG("XMPCaptureOutput(...)");
 diff --git a/src/kernel/xam/xam_content.cpp b/src/kernel/xam/xam_content.cpp
 index 1fb1e16..645c04a 100644
 --- a/src/kernel/xam/xam_content.cpp
@@ -1013,6 +1800,56 @@ index 1fb1e16..645c04a 100644
                disposition_ptr,
                license_mask_ptr](uint32_t& extended_error, uint32_t& length) -> X_RESULT {
      X_RESULT result = X_ERROR_INVALID_PARAMETER;
+diff --git a/src/kernel/xam/xam_enum.cpp b/src/kernel/xam/xam_enum.cpp
+index 9dcab94..499c15e 100644
+--- a/src/kernel/xam/xam_enum.cpp
++++ b/src/kernel/xam/xam_enum.cpp
+@@ -9,6 +9,10 @@
+  * @modified    Tom Clay, 2026 - Adapted for ReXGlue runtime
+  */
+ 
++#include <algorithm>
++#include <cstring>
++
++#include <rex/kernel/xam/apps/xmp_app.h>
+ #include <rex/kernel/xam/module.h>
+ #include <rex/kernel/xam/private.h>
+ #include <rex/logging.h>
+@@ -83,9 +87,31 @@ u32 XamEnumerate_entry(u32 handle, u32 flags, mapped_void buffer, u32 buffer_len
+   return result;
+ }
+ 
+-u32 XamCreateEnumeratorHandle_entry(u32 unk1, u32 unk2, u32 unk3, u32 unk4, u32 unk5, u32 unk6,
+-                                    u32 unk7, u32 unk8) {
+-  return X_ERROR_INVALID_PARAMETER;
++// (user index, app, enumerate message, close message, private structure size, items per
++// XamEnumerate, flags, out handle). Only the music player's user playlists are served: their
++// records are filled in here, from the music folder.
++u32 XamCreateEnumeratorHandle_entry(u32 user_index, u32 app_id, u32 open_message,
++                                    u32 close_message, u32 extra_size, u32 item_count, u32 flags,
++                                    mapped_u32 out_handle) {
++  auto* xmp = rex::kernel::xam::apps::XmpApp::instance();
++  if (app_id != 0xFA || open_message != 0x00070026 || !xmp || !out_handle) {
++    REXKRNL_WARN("XamCreateEnumeratorHandle: app {:08X} message {:08X} not supported", app_id,
++                 open_message);
++    return X_ERROR_INVALID_PARAMETER;
++  }
++  auto e = make_object<XStaticUntypedEnumerator>(
++      REX_KERNEL_STATE(), std::max<u32>(item_count, 1),
++      rex::kernel::xam::apps::XmpApp::kUserPlaylistItemSize);
++  void* extra = nullptr;
++  auto result =
++      e->Initialize(user_index, app_id, open_message, close_message, flags, extra_size, &extra);
++  if (XFAILED(result))
++    return result;
++  if (extra)
++    std::memset(extra, 0, extra_size);
++  xmp->WriteUserPlaylistItems(e.get());
++  *out_handle = e->handle();
++  return X_ERROR_SUCCESS;
+ }
+ 
+ u32 XamGetPrivateEnumStructureFromHandle_entry(u32 handle, mapped_u32 out_object_ptr) {
 diff --git a/src/kernel/xam/xam_ui.cpp b/src/kernel/xam/xam_ui.cpp
 index 5a572ce..f5043b6 100644
 --- a/src/kernel/xam/xam_ui.cpp

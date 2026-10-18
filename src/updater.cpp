@@ -595,10 +595,12 @@ bool Updater::Swap(std::string& error) {
   const fs::path staged_dir = config_.game_dir / "update" / "files";
   for (const fs::path& rel : staged_) {
     const std::string top = U8(*rel.begin());
-    // The player's data stays as it is (saves, backups, DLC packages, the update itself).
-    if (top == "userdata" || top == "save_backups" || top == "update" || top == "dlc") {
-      if (top == "dlc")
-        fs::create_directories(config_.game_dir / "dlc", ec);
+    // The player's data stays as it is (saves, backups, DLC packages, their music, the update
+    // itself).
+    if (top == "userdata" || top == "save_backups" || top == "update" || top == "dlc" ||
+        top == "music") {
+      if (top == "dlc" || top == "music")
+        fs::create_directories(config_.game_dir / top, ec);
       continue;
     }
     const fs::path dest = config_.game_dir / rel;
@@ -681,7 +683,7 @@ void Updater::CleanUp(const fs::path& game_dir) {
   for (; !ec && it != fs::recursive_directory_iterator(); it.increment(ec)) {
     const std::string name = U8(it->path().filename());
     if (it->is_directory(ec)) {
-      if (name == "userdata" || name == "save_backups" || name == "dlc")
+      if (name == "userdata" || name == "save_backups" || name == "dlc" || name == "music")
         it.disable_recursion_pending();
       continue;
     }

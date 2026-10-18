@@ -26,7 +26,7 @@ if (-not (Select-String -Path "$BuildD3D12\CMakeCache.txt" -Pattern "^SVR_D3D12:
 
 $Out = "$Root\dist\$Name-v$Version"
 if (Test-Path $Out) { Remove-Item $Out -Recurse -Force }
-New-Item -ItemType Directory -Force $Out, "$Out\licenses", "$Out\dlc" | Out-Null
+New-Item -ItemType Directory -Force $Out, "$Out\licenses", "$Out\dlc", "$Out\music" | Out-Null
 @"
 Optional: your own WWE SmackDown vs. Raw 2009 DLC goes in this folder.
 
@@ -35,6 +35,45 @@ Copy the DLC package files from your own Xbox 360 (the files with long names lik
 this folder and start the game: they are installed into userdata the first time, and the DLC
 superstars are on the roster. No DLC is included with this download.
 "@ | Set-Content "$Out\dlc\PUT YOUR DLC HERE.txt" -Encoding ascii
+@"
+YOUR OWN ENTRANCE MUSIC (User Playlist)
+========================================
+
+On the Xbox 360 the game could use songs from the console's hard drive as entrance music
+("User Playlist" where you choose the music of an entrance). Here, your songs go in this folder.
+
+1. Make a new folder in here for each playlist. Name it what you want to see in the game,
+   for example:  My Theme
+2. Copy your songs into that folder, as MP3 files (WAV works too). One song is fine.
+   Songs play in the order of their file names: number them (01, 02...) to pick the order.
+
+   It should look like this:
+
+     music\
+       My Theme\
+         my song.mp3
+       Hype Mix\
+         01 first song.mp3
+         02 second song.mp3
+
+   (MP3s put straight in this music folder show up as a playlist called "Music".)
+
+3. In the game, where you choose an entrance's music, pick "User Playlist", then your
+   playlist (you hear it right away). Save the superstar as usual. In matches it plays during
+   the entrance.
+
+Good to know:
+- Only MP3 and WAV play. Other formats (M4A, AAC, FLAC, WMA, OGG): convert them to MP3 first
+  with any free audio converter.
+- New songs or playlists show up the next time you open the list; no restart needed.
+- Renamed a playlist folder? Pick it again in the game (it remembers playlists by name).
+- Songs play from the start: trim a song so the part you want comes first.
+- Updates never touch this folder. Your music stays on your PC.
+- Steam Deck: in Desktop Mode, open this folder in the file manager (Dolphin) and copy your
+  music in (from a USB stick, an SD card or a download), then go back to Game Mode.
+- Nothing plays? The playlist folder needs at least one .mp3 or .wav file. game.log (next to
+  svr2009.exe) says why on lines starting with "Music:".
+"@ | Set-Content "$Out\music\PUT YOUR MUSIC HERE.txt" -Encoding ascii
 # Two programs (src/graphics_api.h): $Id.exe draws with Direct3D 12, and starts $Id`_vulkan.exe
 # instead under Proton (Steam Deck, Linux) or when the Graphics API setting says Vulkan.
 Copy-Item "$BuildD3D12\$Id.exe" "$Out\$Id.exe"
@@ -98,9 +137,11 @@ Graphics: $Id.exe draws with Direct3D 12 on Windows; on Steam Deck / Linux it st
 $($Id)_vulkan.exe (Vulkan) by itself. Settings > Graphics API switches between them.
 Saves: the userdata folder (created on first start). If something goes wrong, send game.log.
 Updates: when a new version is out, the game says so at startup; install it from the settings
-menu (Update), only if you want to. Your saves, settings, DLC and disc image are kept, and your
+menu (Update), only if you want to. Your saves, settings, DLC, music and disc image are kept, and your
 saves are backed up to the save_backups folder first. Turn the check off there too.
 DLC: if you own SvR 2009's DLC, put your own package files in the dlc folder (see the note there).
+Entrance music: your own songs (MP3) in the music folder are the "User Playlist" choice for
+entrances (see the note there).
 
 Licence: this program is free software under the GNU General Public License v3.0
 (licenses/this project (GPL-3.0).txt); the other licences are in the licenses folder.

@@ -76,6 +76,9 @@ loading.
 - **Plays straight from your disc image**: nothing is extracted or installed.
 - **DLC:** if you own SvR 2009's downloadable content, drop your own package files into the `dlc`
   folder and the new superstars are in the game (see [DLC](#dlc-optional)).
+- **Your own entrance music:** put MP3s in the `music` folder and pick them as **User Playlist**
+  when you create an entrance, like songs from the Xbox 360's hard drive (see
+  [Your own entrance music](#your-own-entrance-music-user-playlist)).
 - **Controllers** (Xbox, PlayStation, Switch Pro, the Deck's controls) through SDL. Keyboard controls
   are included but not tested yet, so a controller is recommended. By default every controller
   controls player 1; for **local multiplayer**, set **Controllers** to **Separate players** in the
@@ -145,7 +148,7 @@ The game can update itself, but only when you choose to:
 - **Your saves are kept.** The `userdata` folder (saves, profiles, created superstars, installed
   DLC) is never changed, and before every update your saves are also copied to
   `save_backups\<version>_<date>` in the game's folder. Your settings (`svr2009.toml`), your `dlc`
-  folder and your disc image are kept too. If something goes wrong partway, the update stops and
+  and `music` folders and your disc image are kept too. If something goes wrong partway, the update stops and
   the version you had is put back.
 - **Rather not?** Set **Check for updates** to *Off* in the settings menu and the game never
   goes online. The check only asks GitHub for this project's latest release; nothing about you or
@@ -172,6 +175,64 @@ Horizon or Velocity). They're the files with long names like `9FBE32EF4CDA...` f
 
 Files that aren't SvR 2009 DLC are ignored. Once installed, the files in `dlc` can be deleted to
 save space (keep `userdata`). It works the same on the Steam Deck.
+
+## Your own entrance music (User Playlist)
+
+On the Xbox 360, SvR 2009 could play songs from the console's hard drive as entrance music: the
+**User Playlist** choice when you pick the music for an entrance. The port does the same with
+music files on your PC or Steam Deck. Nothing is uploaded anywhere; your music stays where you put
+it.
+
+**What you need:** your songs as **MP3** files (WAV works too). Songs in other formats (M4A, AAC,
+FLAC, WMA, OGG) need converting to MP3 first; any free audio converter does that.
+
+### Step 1: put your songs in the `music` folder
+
+1. Open the game's folder (the one with `svr2009.exe` in it). There's a folder called `music`
+   there.
+2. Inside `music`, make a **new folder** for each playlist. Give it the name you want to see in the
+   game, for example `My Theme`.
+3. Copy your MP3 files into that folder. A playlist can be just one song.
+
+It should look like this:
+
+```
+SVR2009-NATIVE\
+  svr2009.exe
+  music\
+    My Theme\
+      my song.mp3
+    Hype Mix\
+      01 first song.mp3
+      02 second song.mp3
+```
+
+- Songs play in the order of their file names: put `01`, `02`... in front to choose the order.
+- MP3s placed straight in `music` (not in a folder) show up as a playlist called **Music**.
+
+### Step 2: pick it in the game
+
+1. Go to where you choose the music for an entrance (creating or editing an entrance for your
+   superstar).
+2. Choose **User Playlist**, then your playlist by its folder name. It starts playing right away so
+   you can hear it.
+3. Save as usual. In matches, your playlist plays during the entrance and stops when the match
+   starts.
+
+### Good to know
+
+- **New songs or playlists** show up the next time you open the playlist list; no restart needed.
+- **Renamed a playlist folder?** Choose it again in the game: it remembers playlists by name.
+- **Songs play from the start.** If a song has a long intro, trim it (any free audio editor) so the
+  part you want comes first.
+- **Volume** follows the game's, and **Sound: Muted** in the settings menu mutes it too.
+- **Updates never touch the `music` folder.**
+- **Steam Deck:** switch to Desktop Mode, open the game's folder in the file manager (Dolphin) and
+  copy your music into `music` (from a USB stick, an SD card, or a download). Then go back to Game
+  Mode and play.
+- **Nothing plays, or a playlist is missing?** The playlist folder needs at least one `.mp3` or
+  `.wav` file. `game.log` (next to `svr2009.exe`) explains on lines starting with `Music:`, for
+  example a file it can't play.
 
 ## Linux and Steam Deck (Proton): install and play
 
