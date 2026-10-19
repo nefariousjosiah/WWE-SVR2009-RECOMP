@@ -19,16 +19,22 @@ loading.
 > game, **F1** (or **Back + Start** on a controller, **View + Menu** on the Steam Deck) opens the
 > settings menu.
 
-> **Work in progress.** This port gets regular updates, and bugs are fixed as they're found and
-> reported, so don't expect a finished port yet. If you run into a problem, please
+> **Version 1.0, still updated.** The port gets regular updates, and bugs are fixed as they're
+> found and reported. If you run into a problem, please
 > [open an issue](https://github.com/nefariousjosiah/WWE-SVR2009-RECOMP/issues) with your graphics
 > card, `game.log` from the game's folder and a screenshot.
 
-![The in-game settings menu (F1, or Back + Start on a controller)](docs/settings-menu.png)
+<p align="center">
+  <img src="docs/settings-menu.png" width="520" alt="The in-game settings menu (F1, or Back + Start on a controller)">
+</p>
 
 ## Showcase
 
 <p align="center">
+  <img src="docs/showcase/dx-entrance.gif" width="480" alt="D-Generation X's entrance under the green X">
+  <img src="docs/showcase/ladder.gif" width="480" alt="Triple H crashes off a ladder in a TLC match">
+  <img src="docs/showcase/over-the-top.gif" width="480" alt="Doink throws the Undertaker over the top rope in an Inferno match">
+  <img src="docs/showcase/inferno.gif" width="480" alt="The Undertaker is set alight in an Inferno match">
   <img src="docs/showcase/entrance.gif" width="480" alt="Triple H's entrance">
   <img src="docs/showcase/pedigree.gif" width="480" alt="Triple H hits the Pedigree on the Undertaker">
   <img src="docs/showcase/spinebuster.gif" width="480" alt="Triple H's spinebuster on the Undertaker">
@@ -66,6 +72,9 @@ loading.
   fullscreen or window, 60 or 30 fps, screen shape, FPS counter, sound, **language** (English,
   Spanish, French, German or Italian), keyboard controls, how controllers map to players and CPU
   priority. Saved for next time.
+- **Play in your language:** English, Español, Français, Deutsch or Italiano, the languages on
+  the disc. Pick one under **Language** in the settings menu and press A twice to restart
+  straight into it. (The commentary is English only, as on the disc.)
 - **Updates in the game, when you want them:** a new version is announced at startup and installed
   from the settings menu only if you choose to. Your saves are kept and backed up first (see
   [Updating](#updating)).
@@ -291,9 +300,9 @@ Notes for the Deck:
 - **Local multiplayer:** set **Controllers** to **Separate players** in the settings menu first
   (by default every controller is player 1). With Separate players, if a controller shows up twice
   (Steam Input, DS4Windows, DSX) and the copy drops out, the game pauses for player 2 ("2P
-  paused") until it comes back: close or turn off the app making the copy. Problems? Send
-  `game.log` from the game's folder in
-  [issue #3](https://github.com/nefariousjosiah/WWE-SVR2009-RECOMP/issues/3).
+  paused") until it comes back: close or turn off the app making the copy. Problems?
+  [Open an issue](https://github.com/nefariousjosiah/WWE-SVR2009-RECOMP/issues) with `game.log`
+  from the game's folder.
 
 ## Troubleshooting
 
@@ -354,9 +363,10 @@ sources, `tools/` build scripts, `docs/` the images on this page.
 - [re:Blue](https://github.com/zolaware/reblue) (Blue Dragon), the renderer this one is adapted
   from, with [plume](https://github.com/zolaware/plume) and
   [XenosRecomp](https://github.com/zolaware/reblue-XenosRecomp).
-- The settings menu: [Dear ImGui](https://github.com/ocornut/imgui) and the Roboto font;
+- The settings menu: [Dear ImGui](https://github.com/ocornut/imgui), with the Press Start 2P and
+  Roboto fonts;
   [SDL](https://libsdl.org) for controllers and sound.
-- [zstd](https://github.com/facebook/zstd); the Press Start 2P font.
+- [zstd](https://github.com/facebook/zstd).
 - Inside the runtime: [FFmpeg](https://ffmpeg.org) (audio),
   [libmspack](https://github.com/kyz/libmspack) and the other libraries the ReXGlue SDK uses.
 
