@@ -1,141 +1,87 @@
 # WWE SmackDown vs. Raw 2009 — native PC, Linux & Steam Deck
 
-The Xbox 360 version of **WWE SmackDown vs. Raw 2009**, running natively on Windows, and on Linux
-and the Steam Deck through Proton: no emulator. The game's own program is recompiled to run
-directly on your PC, and its graphics go through a native renderer (Direct3D 12 on Windows,
-Vulkan on Linux and the Steam Deck), at 60 fps and up to 4K.
+The Xbox 360 version of **WWE SmackDown vs. Raw 2009**, recompiled to run natively on Windows, Linux
+and the Steam Deck: no emulator, **60 fps**, up to **4K**.
 
 **The goal is simple: bring the game back so people can play it again, natively on PC at 60 fps.**
-It's the same game you remember, with no mods, roster changes or reworked gameplay. The only changes
-are the ones it needs to run well on today's hardware: a native renderer, a steady 60 fps (using the
-game's own 60 fps mode, so everything plays at the right speed), higher resolutions and faster
-loading.
+It's the same game you remember, with no mods, roster changes or reworked gameplay: only what it needs
+to run well on today's hardware.
 
-> **You need your own copy of the game.** None of the files from the game disc are in this project
-> or its downloads, and nothing is ever downloaded for you: the game runs from a disc image
-> (`.iso`) made from your own SvR 2009 disc. It does not condone piracy: please buy the game.
-
-> **No installer, no launcher.** Put your `.iso` in the game's folder and run **`svr2009.exe`**. In
-> game, **F1** (or **Back + Start** on a controller, **View + Menu** on the Steam Deck) opens the
-> settings menu.
-
-> **Version 1.0, still updated.** The port gets regular updates, and bugs are fixed as they're
-> found and reported. If you run into a problem, please
-> [open an issue](https://github.com/nefariousjosiah/WWE-SVR2009-RECOMP/issues) with your graphics
-> card, `game.log` from the game's folder and a screenshot.
-
-<p align="center">
-  <img src="docs/settings-menu.png" width="520" alt="The in-game settings menu (F1, or Back + Start on a controller)">
-</p>
+> **You need your own copy of the game.** It runs from a disc image (`.iso`) of your own SvR 2009
+> disc. None of the disc's files are in this project or its downloads, and it does not condone
+> piracy: please buy the game.
+>
+> **Version 1.0, still updated.** Run into a problem?
+> [Open an issue](https://github.com/nefariousjosiah/WWE-SVR2009-RECOMP/issues) with `game.log` from
+> the game's folder, your graphics card and a screenshot.
 
 ## Showcase
 
 <p align="center">
-  <img src="docs/showcase/dx-entrance.gif" width="480" alt="D-Generation X's entrance under the green X">
-  <img src="docs/showcase/ladder.gif" width="480" alt="Triple H crashes off a ladder in a TLC match">
-  <img src="docs/showcase/over-the-top.gif" width="480" alt="Doink throws the Undertaker over the top rope in an Inferno match">
-  <img src="docs/showcase/inferno.gif" width="480" alt="The Undertaker is set alight in an Inferno match">
-  <img src="docs/showcase/entrance.gif" width="480" alt="Triple H's entrance">
-  <img src="docs/showcase/pedigree.gif" width="480" alt="Triple H hits the Pedigree on the Undertaker">
-  <img src="docs/showcase/spinebuster.gif" width="480" alt="Triple H's spinebuster on the Undertaker">
-  <img src="docs/showcase/backbreaker.gif" width="480" alt="Randy Orton's inverted headlock backbreaker on the Undertaker">
-  <img src="docs/showcase/punt.gif" width="480" alt="Randy Orton punts the Undertaker">
+  <img src="docs/showcase/dx-entrance.gif" width="32%" alt="D-Generation X's entrance under the green X">
+  <img src="docs/showcase/ladder.gif" width="32%" alt="Triple H crashes off a ladder in a TLC match">
+  <img src="docs/showcase/over-the-top.gif" width="32%" alt="Doink throws the Undertaker over the top rope in an Inferno match">
+  <img src="docs/showcase/inferno.gif" width="32%" alt="The Undertaker is set alight in an Inferno match">
+  <img src="docs/showcase/entrance.gif" width="32%" alt="Triple H's entrance">
+  <img src="docs/showcase/pedigree.gif" width="32%" alt="Triple H hits the Pedigree on the Undertaker">
+  <img src="docs/showcase/spinebuster.gif" width="32%" alt="Triple H's spinebuster on the Undertaker">
+  <img src="docs/showcase/backbreaker.gif" width="32%" alt="Randy Orton's inverted headlock backbreaker on the Undertaker">
+  <img src="docs/showcase/punt.gif" width="32%" alt="Randy Orton punts the Undertaker">
 </p>
 
 ## Features
 
-- **Native, not emulated.** The game's PowerPC code is statically recompiled to x86-64
-  ([ReXGlue](https://github.com/rexglue/rexglue-sdk)), and the game's own Direct3D calls are drawn
-  by a native renderer (adapted from [re:Blue](https://github.com/zolaware/reblue)) with the
-  game's shaders recompiled ahead of time. No GPU emulation.
-- **Direct3D 12 on Windows, Vulkan on Linux and the Steam Deck.** `svr2009.exe` draws with
-  Direct3D 12; under Proton it starts `svr2009_vulkan.exe` by itself, so Deck players change
-  nothing. *Graphics API* in the settings menu switches between them (if one doesn't suit your
-  graphics card, try the other).
-- **Runs smoothly on lower-end PCs too.** The renderer does far less work per frame: the graphics
-  driver's work runs on its own thread, and textures, geometry and shader settings are only sent
-  again when they change. Every shader variant is prepared when the game is built, and the
-  graphics pipelines the game uses are compiled in the background while each scene loads, instead
-  of in the middle of an entrance. **CPU priority: High** in the settings menu helps further on
-  busy or weak PCs.
-- **60 fps** in menus and matches, using the game's own 60 fps mode so game speed stays right
-  (the original 30 fps is one setting away). Road to WrestleMania cutscenes play at 60 fps too;
-  their captions then show a few seconds early, so **Cutscenes > 30 fps** in the settings menu
-  plays them as on the console, with the captions in sync.
-- **Up to 4K.** Internal resolution follows your screen: 1440p on 1080p and 1440p monitors, 4K on
-  4K monitors, 720p on the Steam Deck and on laptops' built-in graphics. The settings menu shows
-  what Auto picked, or pick 720p / 1440p / 4K yourself. 16x anisotropic filtering.
-- **Sharper image:** the game's own edge-blur filter (the console's cheap anti-aliasing, which
-  smeared hair, tattoos, ropes and the crowd) is off; the higher internal resolution smooths edges
-  instead. `svr_edge_blur = true` in `svr2009.toml` brings the original look back.
-- **In-game settings menu:** F1, or Back + Start on a controller (Share + Options on PlayStation): resolution, graphics API,
-  fullscreen or window, 60 or 30 fps, screen shape, FPS counter, sound, **language** (English,
-  Spanish, French, German or Italian), keyboard controls, how controllers map to players and CPU
-  priority. Saved for next time.
-- **Play in your language:** English, Español, Français, Deutsch or Italiano, the languages on
-  the disc. Pick one under **Language** in the settings menu and press A twice to restart
-  straight into it. (The commentary is English only, as on the disc.)
-- **Updates in the game, when you want them:** a new version is announced at startup and installed
-  from the settings menu only if you choose to. Your saves are kept and backed up first (see
-  [Updating](#updating)).
-- **Linux and Steam Deck** through Proton, Steam's compatibility layer: put your disc image in the
-  game's folder and run the game. On the Deck: 720p at 60 fps, the correct 16:9 shape (or
-  stretched to fill).
-- **Faster loading:** matches load in about 20 seconds instead of nearly a minute (the game
-  paced its loading for the console's DVD drive).
-- **Plays straight from your disc image**: nothing is extracted or installed.
-- **DLC:** if you own SvR 2009's downloadable content, drop your own package files into the `dlc`
-  folder and the new superstars are in the game (see [DLC](#dlc-optional)).
-- **Your own entrance music:** put MP3s in the `music` folder and pick them as **User Playlist**
-  when you create an entrance, like songs from the Xbox 360's hard drive (see
-  [Your own entrance music](#your-own-entrance-music-user-playlist)).
-- **Controllers** (Xbox, PlayStation, Switch Pro, the Deck's controls) through SDL. Keyboard controls
-  are included but not tested yet, so a controller is recommended. By default every controller
-  controls player 1; for **local multiplayer**, set **Controllers** to **Separate players** in the
-  settings menu.
+- **Native, not emulated:** the game's own code is recompiled for PC and drawn by a native renderer,
+  Direct3D 12 on Windows and Vulkan on Linux and the Steam Deck.
+- **60 fps,** using the game's own 60 fps mode so everything plays at the right speed (Road to
+  WrestleMania cutscenes too).
+- **Up to 4K:** 1440p on 1080p and 1440p screens, 4K on 4K screens, 720p on the Steam Deck. The
+  console's edge blur is off, for a sharper image.
+- **Smooth on lower-end PCs too:** no first-time stutters, and far less work per frame.
+- **Matches load in about 20 seconds** instead of nearly a minute.
+- **Play in your language:** English, Español, Français, Deutsch or Italiano.
+- **Your own entrance music** ([User Playlist](#your-own-entrance-music-user-playlist)) and
+  **your own DLC superstars** ([DLC](#dlc-optional)).
+- **Updates from inside the game,** only when you choose to; your saves are kept and backed up.
+- **Controllers:** Xbox, PlayStation, Switch Pro and the Steam Deck's own.
 
-## What you need
-
-- **Your own SvR 2009 disc image**, USA / Europe release (one release for both regions: title ID
-  `54510826`, media ID `7AFA4596`, about 7.3 GB). Other releases aren't supported
-  yet.
-- **Windows 10 or 11, 64-bit**, and a graphics card with **Direct3D 12** or **Vulkan** support
-  (AMD, NVIDIA or Intel, with a recent driver). Or **Linux** with Steam (Proton) and Vulkan
-  drivers, such as a **Steam Deck**.
-- About 130 MB for the program, plus your disc image.
+<p align="center">
+  <img src="docs/settings-menu.png" width="420" alt="The in-game settings menu (F1, or Back + Start on a controller)">
+</p>
 
 ## Windows: install and play
 
-1. Download `SVR2009-NATIVE.zip` from the
-   [Releases](https://github.com/nefariousjosiah/WWE-SVR2009-RECOMP/releases) page (under
-   *Assets*; not *Source code*, which is the developer source).
-2. Extract it to a folder of its own, for example `C:\Games\SVR2009-NATIVE`
-   (not inside `Program Files`).
+1. Download **`SVR2009-NATIVE.zip`** from
+   [Releases](https://github.com/nefariousjosiah/WWE-SVR2009-RECOMP/releases) (under *Assets*, not
+   *Source code*).
+2. Extract it to a folder of its own, for example `C:\Games\SVR2009-NATIVE` (not inside
+   `Program Files`).
 3. Copy your `.iso` into that folder, next to `svr2009.exe`.
-4. Run **`svr2009.exe`**. The game finds the disc image by itself and starts.
+4. Run **`svr2009.exe`**. If Windows warns, click *More info* > *Run anyway* (the program isn't
+   code-signed).
 
-Good to know:
+**In game:** **F1** (or **Back + Start** on a controller, **Share + Options** on PlayStation) opens
+the settings menu, and **F2** shows or hides the FPS counter. Your saves are in the `userdata`
+folder: back it up to keep your career and created superstars.
 
-- **Settings:** press **F1** in game (or **Back + Start** on a controller, **Share + Options** on PlayStation) for the settings menu:
-  resolution (Auto, 720p, 1440p, 4K), graphics API (Auto, Direct3D 12, Vulkan), fullscreen or
-  window, 60 or 30 fps, screen shape, FPS counter, sound, **Language** (English, Español, Français,
-  Deutsch, Italiano: the game's text and menus; press A on it to restart into the new language;
-  the commentary stays in English), keyboard controls, **Controllers**
-  (every controller on player 1 by default; choose **Separate players** for local multiplayer) and
-  CPU priority. They are saved in `svr2009.toml`.
-- **"Windows protected your PC"**: the program isn't code-signed. Click *More info* and then
-  *Run anyway*.
-- **Quitting:** close the game window (Alt+F4 or the close button).
-- **Saves** live in the `userdata` folder. Back it up to keep your career and created superstars.
-- **Updates:** from v0.5 on, the game can update itself when you choose to: see
-  [Updating](#updating).
-- **Disc image somewhere else?** If there's no `.iso` in the folder, the game asks for one the
-  first time and remembers it.
+You need Windows 10 or 11 (64-bit), a graphics card with Direct3D 12 or Vulkan (AMD, NVIDIA or
+Intel, with a recent driver) and the USA / Europe release of the game (title ID `54510826`, media
+ID `7AFA4596`, about 7.3 GB).
 
-### Controls
+<details>
+<summary><b>Settings, controllers and keyboard</b></summary>
 
-**A controller is recommended**; plug it in before starting. Keyboard controls are currently not
-tested yet. Their default layout (rebind with **F4** in game):
+- **The settings menu:** resolution (Auto, 720p, 1440p, 4K), graphics API (Auto, Direct3D 12,
+  Vulkan), fullscreen or window, 60 or 30 fps, cutscenes, screen shape, FPS counter, sound,
+  **Language**, keyboard controls, **Controllers**, CPU priority and updates. Saved in `svr2009.toml`.
+- **Language:** the game's text and menus in English, Español, Français, Deutsch or Italiano (the
+  commentary is English only, as on the disc). Pick one and press A twice to restart straight into it.
+- **Controllers:** plug yours in before starting. By default every controller controls player 1; for
+  **local multiplayer**, set **Controllers** to **Separate players**.
+- **Disc image somewhere else?** If there's no `.iso` in the folder, the game asks for one the first
+  time and remembers it.
+- **Keyboard controls** are included but not tested yet (a controller is recommended). The default
+  layout (rebind with **F4** in game):
 
 | Controller | Keyboard | | Controller | Keyboard |
 |---|---|---|---|---|
@@ -146,68 +92,63 @@ tested yet. Their default layout (rebind with **F4** in game):
 | Start | Enter / X | | LT / RT | Q / E |
 | Back | Tab / Z | | Stick presses | F / K |
 
-**F1** (or **Back + Start**) opens the settings menu; **F2** shows or hides the FPS counter.
+</details>
+
+## Linux and Steam Deck (Proton): install and play
+
+The Windows release runs through Proton, Steam's compatibility layer: 720p at 60 fps on the Deck.
+
+1. In **Desktop Mode**, download `SVR2009-NATIVE.zip`, extract it to a folder of its own (for example
+   `/home/deck/Games/SVR2009-NATIVE`) and copy your `.iso` next to `svr2009.exe`.
+2. In Steam: *Games* > *Add a Non-Steam Game to My Library...* > *Browse...*, set the file type to
+   *All files* and pick `svr2009.exe`.
+3. Right-click it > *Properties...* > *Compatibility*, tick *Force the use of a specific Steam Play
+   compatibility tool* and choose **Proton Experimental**.
+4. Back in **Game Mode**, start it from *Library* > *Non-Steam*.
+
+<details>
+<summary><b>More for the Steam Deck and Linux</b></summary>
+
+- **Copying from your PC:** a USB stick must be **exFAT or NTFS** (the disc image is bigger than
+  FAT32's 4 GB limit). A microSD card works too.
+- **Other Linux PCs:** the same steps in Steam's desktop client, with up-to-date Vulkan drivers.
+- **The first start** takes a little longer while Proton sets itself up.
+- **Settings:** press **View + Menu** together. To use a back button instead: the game's
+  *Controller settings* > *Edit Layout* > *Back Grip Buttons* > **L4** > *Keyboard* > **F1**.
+- **Black bars:** the game is 16:9 and the Deck's screen 16:10; *Screen shape* > *Stretch to fill*
+  in the settings menu fills it.
+- **Quit** with the Steam button > *Exit game*. You can rename the shortcut (*WWE SmackDown vs. Raw
+  2009*) and set its artwork in its properties.
+
+</details>
 
 ## Updating
 
-The game can update itself, but only when you choose to:
-
-- **At startup** it asks GitHub, in the background, whether a newer version of this port is out.
-  If there is one, a notice shows for a few seconds. Nothing is downloaded yet.
-- **To update,** open the settings menu (**F1**, or **Back + Start** on a controller), go down to
-  **Update** and press **A** (or Enter): the menu shows what's new in that version. Press **A**
-  once more to install it. It backs up your saves, downloads the new version, checks it and
-  installs it. Then choose **Restart now**.
-- **Your saves are kept.** The `userdata` folder (saves, profiles, created superstars, installed
-  DLC) is never changed, and before every update your saves are also copied to
-  `save_backups\<version>_<date>` in the game's folder. Your settings (`svr2009.toml`), your `dlc`
-  and `music` folders and your disc image are kept too. If something goes wrong partway, the update stops and
-  the version you had is put back.
-- **Rather not?** Set **Check for updates** to *Off* in the settings menu and the game never
-  goes online. The check only asks GitHub for this project's latest release; nothing about you or
-  your PC is sent.
-- **Coming from v0.4 or older:** download the new zip once by hand (see
-  [Windows: install and play](#windows-install-and-play)); from v0.5 on, the game does it.
+Open the settings menu, go to **Update** and press **A** to see what's new, **A** again to install,
+then **Restart now**. Your `userdata` (saves, created superstars, installed DLC), settings, `dlc` and
+`music` folders and disc image are kept, and your saves are also copied to `save_backups` first; if
+anything goes wrong, the version you had is put back. **Check for updates: Off** keeps the game
+offline (the check only asks GitHub for the latest release). Coming from v0.4 or older? Download the
+new zip once by hand.
 
 ## DLC (optional)
 
-SvR 2009's downloadable content (the Roster Update packs: new superstars, their entrances and an
-extra costume) works too. **None of it is included: you need your own DLC**, the package files
-from your own Xbox 360 (copied off its hard drive, for example with a USB stick and a tool such as
-Horizon or Velocity). They're the files with long names like `9FBE32EF4CDA...` from the console's
-`Content\0000000000000000\54510826\00000002\` folder.
+Your own Roster Update packs work: new superstars, their entrances and an extra costume. Copy the
+package files from your Xbox 360 (the files with long names like `9FBE32EF4CDA...` in
+`Content\0000000000000000\54510826\00000002\`, copied off with a USB stick and a tool such as Horizon
+or Velocity) into the `dlc` folder next to `svr2009.exe`, and start the game. The first start
+unpacks them into `userdata`, and the DLC superstars are on the roster. None of the DLC is included.
 
 <p align="center">
-  <img src="docs/showcase/dlc-jericho.gif" width="480" alt="DLC superstar Chris Jericho in a tag match">
-  <img src="docs/showcase/dlc-doink.gif" width="480" alt="DLC superstar Doink the Clown in a tag match">
+  <img src="docs/showcase/dlc-jericho.gif" width="49%" alt="DLC superstar Chris Jericho in a tag match">
+  <img src="docs/showcase/dlc-doink.gif" width="49%" alt="DLC superstar Doink the Clown in a tag match">
 </p>
-
-1. Copy the package files into the `dlc` folder next to `svr2009.exe` (any subfolder is fine).
-2. Start the game. The first start with new DLC unpacks it into `userdata` (a few seconds); after
-   that the DLC superstars are on the roster.
-
-Files that aren't SvR 2009 DLC are ignored. Once installed, the files in `dlc` can be deleted to
-save space (keep `userdata`). It works the same on the Steam Deck.
 
 ## Your own entrance music (User Playlist)
 
-On the Xbox 360, SvR 2009 could play songs from the console's hard drive as entrance music: the
-**User Playlist** choice when you pick the music for an entrance. The port does the same with
-music files on your PC or Steam Deck. Nothing is uploaded anywhere; your music stays where you put
-it.
-
-**What you need:** your songs as **MP3** files (WAV works too). Songs in other formats (M4A, AAC,
-FLAC, WMA, OGG) need converting to MP3 first; any free audio converter does that.
-
-### Step 1: put your songs in the `music` folder
-
-1. Open the game's folder (the one with `svr2009.exe` in it). There's a folder called `music`
-   there.
-2. Inside `music`, make a **new folder** for each playlist. Give it the name you want to see in the
-   game, for example `My Theme`.
-3. Copy your MP3 files into that folder. A playlist can be just one song.
-
-It should look like this:
+Like songs from the Xbox 360's hard drive: inside the `music` folder (next to `svr2009.exe`), make a
+folder for each playlist and put your **MP3** files in it. Then, where you choose an entrance's
+music, pick **User Playlist** and your playlist.
 
 ```
 SVR2009-NATIVE\
@@ -215,94 +156,32 @@ SVR2009-NATIVE\
   music\
     My Theme\
       my song.mp3
-    Hype Mix\
-      01 first song.mp3
-      02 second song.mp3
 ```
 
-- Songs play in the order of their file names: put `01`, `02`... in front to choose the order.
-- MP3s placed straight in `music` (not in a folder) show up as a playlist called **Music**.
+<details>
+<summary><b>More about entrance music</b></summary>
 
-### Step 2: pick it in the game
+- Songs play in the order of their file names (put `01`, `02`... in front). MP3s placed straight in
+  `music` show up as a playlist called **Music**. WAV works too; other formats (M4A, AAC, FLAC, WMA,
+  OGG) need converting to MP3 first.
+- In the game: create or edit an entrance, choose **User Playlist**, then your playlist by its folder
+  name. It plays right away so you can hear it; in matches it plays during the entrance.
+- New songs show up the next time you open the playlist list. A renamed folder needs choosing again.
+  Songs play from the start, so trim long intros.
+- The volume follows the game's, and **Sound: Muted** mutes it too. Updates never touch `music`.
+- **Steam Deck:** in Desktop Mode, copy your music into `music` with the file manager (Dolphin).
+- **Nothing plays?** The folder needs at least one `.mp3` or `.wav`; `game.log` explains on lines
+  starting with `Music:`.
 
-1. Go to where you choose the music for an entrance (creating or editing an entrance for your
-   superstar).
-2. Choose **User Playlist**, then your playlist by its folder name. It starts playing right away so
-   you can hear it.
-3. Save as usual. In matches, your playlist plays during the entrance and stops when the match
-   starts.
-
-### Good to know
-
-- **New songs or playlists** show up the next time you open the playlist list; no restart needed.
-- **Renamed a playlist folder?** Choose it again in the game: it remembers playlists by name.
-- **Songs play from the start.** If a song has a long intro, trim it (any free audio editor) so the
-  part you want comes first.
-- **Volume** follows the game's, and **Sound: Muted** in the settings menu mutes it too.
-- **Updates never touch the `music` folder.**
-- **Steam Deck:** switch to Desktop Mode, open the game's folder in the file manager (Dolphin) and
-  copy your music into `music` (from a USB stick, an SD card, or a download). Then go back to Game
-  Mode and play.
-- **Nothing plays, or a playlist is missing?** The playlist folder needs at least one `.mp3` or
-  `.wav` file. `game.log` (next to `svr2009.exe`) explains on lines starting with `Music:`, for
-  example a file it can't play.
-
-## Linux and Steam Deck (Proton): install and play
-
-On Linux the Windows release runs through Proton, Steam's compatibility layer; there's no separate
-Linux build. The Steam Deck is the tested setup and holds 60 fps; other Linux PCs with Steam and
-up-to-date Vulkan drivers should work the same way. With your disc image in the same folder as `svr2009.exe`, the
-game finds it by itself.
-
-The steps below are for the Steam Deck. On another Linux PC, do the same in Steam's desktop
-client and skip the Desktop Mode and Game Mode parts.
-
-**In Desktop Mode** (press the Steam button, *Power*, *Switch to Desktop*):
-
-1. **Get the release.** Download `SVR2009-NATIVE.zip`
-   (under *Assets*, not *Source code*) with a browser, or copy it from your PC together with your
-   disc image. A USB stick for the copy must be **exFAT or NTFS**: the disc image is bigger than
-   FAT32's 4 GB file limit.
-2. **Extract it.** In the *Dolphin* file manager, make a folder such as
-   `/home/deck/Games/SVR2009-NATIVE`, right-click the zip, *Extract*, *Extract archive to...*,
-   and choose that folder. (A microSD card works too.)
-3. **Add your disc image.** Copy your `.iso` into that folder, next to `svr2009.exe`.
-4. **Add it to Steam.** Open Steam (desktop), then *Games* > *Add a Non-Steam Game to My
-   Library...* > *Browse...*. Set the file type filter to *All files*, pick `svr2009.exe` in your
-   folder, then *Add Selected Programs*.
-5. **Turn on Proton.** In your library, right-click *svr2009* > *Properties...* >
-   *Compatibility*, tick *Force the use of a specific Steam Play compatibility tool* and choose
-   **Proton Experimental** (or the newest Proton). While you are there, rename the shortcut to
-   *WWE SmackDown vs. Raw 2009*.
-
-**Back in Game Mode** (the *Return to Gaming Mode* icon on the desktop):
-
-6. Start it from *Library* > *Non-Steam*. The game starts fullscreen at 720p and 60 fps. To quit,
-   press the Steam button and *Exit game*.
-
-Notes for the Deck:
-
-- **The first start** takes a little longer while Proton sets itself up.
-- **Settings:** press **View + Menu** together (the two buttons left and right of the screen) to
-  open the settings menu. To open it with the top-left back button instead: the game's
-  *Controller settings* > *Edit Layout* > *Back Grip Buttons* > **L4** > *Keyboard* > **F1**.
-- **Black bars:** the game is 16:9 and the Deck's screen is 16:10, so there are thin bars above
-  and below. *Screen shape* > *Stretch to fill* in the settings menu fills the screen.
-- **Controls:** the Deck's built-in controls work as an Xbox controller with Steam's default
-  layout.
-- **Artwork:** Steam's library artwork for the shortcut can be set from its properties.
+</details>
 
 ## Known issues
 
-- **Road to WrestleMania captions at 60 fps:** cutscene captions are timed for 30 fps, so at 60
-  fps they appear a few seconds before the line is spoken. Set **Cutscenes** to **30 fps
-  (captions in sync)** in the settings menu if that bothers you.
-- **Local multiplayer:** set **Controllers** to **Separate players** in the settings menu first
-  (by default every controller is player 1). With Separate players, if a controller shows up twice
-  (Steam Input, DS4Windows, DSX) and the copy drops out, the game pauses for player 2 ("2P
-  paused") until it comes back: close or turn off the app making the copy. Problems?
-  [Open an issue](https://github.com/nefariousjosiah/WWE-SVR2009-RECOMP/issues) with `game.log`
-  from the game's folder.
+- **Road to WrestleMania captions at 60 fps** appear a few seconds before the line is spoken (they're
+  timed for 30 fps). **Cutscenes** > **30 fps (captions in sync)** in the settings menu fixes it.
+- **Local multiplayer:** with **Separate players**, if a controller shows up twice (Steam Input,
+  DS4Windows, DSX) and the copy drops out, the game pauses for player 2 ("2P paused") until it comes
+  back: close or turn off the app making the copy.
 
 ## Troubleshooting
 
@@ -310,25 +189,31 @@ Notes for the Deck:
 |---|---|
 | A window asks for a disc image | There's no `.iso` next to `svr2009.exe`: pick your disc image (it's remembered), or copy it into the game's folder. |
 | The game closes right after starting | Check that your disc image is the USA / Europe release of SvR 2009 and complete. |
-| Black screen, or the game closes | Update your graphics driver, then try again. Still happening: **F1** > *Graphics API* > the other one (or add `svr_graphics_api = "vulkan"` to `svr2009.toml`), and start again. If it keeps happening, open an issue with `game.log` from the game's folder. |
-| It runs slowly | Make sure you have the latest version (v0.6 made a big difference on older PCs). **F1** > *CPU priority* > **High** helps on a busy or weak PC. On a weak graphics card, **F1** > *Resolution* > **720p** (applies on the next start) needs less from it. If it still drops, open an issue with `game.log`, your processor and graphics card. |
-| Windows blocks it | *More info* > *Run anyway* (the program isn't code-signed). |
+| Black screen, or the game closes | Update your graphics driver. Still happening: **F1** > *Graphics API* > the other one (or add `svr_graphics_api = "vulkan"` to `svr2009.toml`) and start again. |
+| It runs slowly | Get the latest version. **F1** > *CPU priority* > **High** helps on a busy or weak PC; on a weak graphics card, **F1** > *Resolution* > **720p** (from the next start). |
 
-## How it works
+Still stuck? [Open an issue](https://github.com/nefariousjosiah/WWE-SVR2009-RECOMP/issues) with
+`game.log` from the game's folder, your processor and graphics card.
 
-- **Recompilation.** [ReXGlue](https://github.com/rexglue/rexglue-sdk) translates the game's Xbox
-  360 executable into C++ that is compiled for x86-64. The Xbox 360 system calls it makes are
-  provided by the ReXGlue runtime, which also reads the game's data straight from your disc image.
-- **Rendering.** Instead of emulating the Xbox 360 GPU, the renderer watches the game's own
-  Direct3D library (statically linked into the game) and draws the same scenes through
-  [plume](https://github.com/zolaware/plume) on Direct3D 12 or Vulkan (two builds of the game,
-  `svr2009.exe` and `svr2009_vulkan.exe`). The game's shaders are converted ahead of time with
-  [XenosRecomp](https://github.com/zolaware/reblue-XenosRecomp); for Direct3D 12 every variant is
-  also linked ahead of time. The emulated GPU only keeps the game's command stream moving.
+<details>
+<summary><b>How it works</b></summary>
+
+- **Recompilation.** [ReXGlue](https://github.com/rexglue/rexglue-sdk) translates the game's Xbox 360
+  executable into C++ compiled for x86-64. The Xbox 360 system calls it makes are provided by the
+  ReXGlue runtime, which also reads the game's data straight from your disc image.
+- **Rendering.** Instead of emulating the Xbox 360 GPU, the renderer (adapted from
+  [re:Blue](https://github.com/zolaware/reblue)) watches the game's own Direct3D library and draws the
+  same scenes through [plume](https://github.com/zolaware/plume) on Direct3D 12 or Vulkan (two builds,
+  `svr2009.exe` and `svr2009_vulkan.exe`; under Proton the first starts the second). The game's
+  shaders are converted ahead of time with [XenosRecomp](https://github.com/zolaware/reblue-XenosRecomp),
+  and the graphics pipelines are compiled in the background while each scene loads.
 - **60 fps.** The game has its own 60 fps mode, which it normally drops to 30 for matches; a hook
   keeps it at 60, so the game logic and the animations stay in step.
 
-## Building from source
+</details>
+
+<details>
+<summary><b>Building from source</b></summary>
 
 For developers; players use the releases. Windows, with about 30 GB free.
 
@@ -349,12 +234,14 @@ and a match or two with shader dumping on, run `tools\native\build_shader_cache.
 `setup.ps1` again.
 
 Afterwards: `tools\windows\build.ps1` rebuilds, `tools\windows\run.ps1` runs it, and
-`tools\windows\package_release.ps1` makes the release zip (the game, no game
-files; the version number comes from `CMakeLists.txt`).
+`tools\windows\package_release.ps1` makes the release zip (the game, no game files; the version
+number comes from `CMakeLists.txt`).
 
 Repository layout: `src/` the game-specific code (`native/` renderer glue, `reblue/` the renderer),
-`config/` recompiler configuration, `patches/` changes to the third-party
-sources, `tools/` build scripts, `docs/` the images on this page.
+`config/` recompiler configuration, `patches/` changes to the third-party sources, `tools/` build
+scripts, `docs/` the images on this page.
+
+</details>
 
 ## Credits
 
@@ -363,10 +250,8 @@ sources, `tools/` build scripts, `docs/` the images on this page.
 - [re:Blue](https://github.com/zolaware/reblue) (Blue Dragon), the renderer this one is adapted
   from, with [plume](https://github.com/zolaware/plume) and
   [XenosRecomp](https://github.com/zolaware/reblue-XenosRecomp).
-- The settings menu: [Dear ImGui](https://github.com/ocornut/imgui), with the Press Start 2P and
-  Roboto fonts;
-  [SDL](https://libsdl.org) for controllers and sound.
-- [zstd](https://github.com/facebook/zstd).
+- [Dear ImGui](https://github.com/ocornut/imgui) with the Press Start 2P and Roboto fonts for the
+  settings menu; [SDL](https://libsdl.org) for controllers and sound; [zstd](https://github.com/facebook/zstd).
 - Inside the runtime: [FFmpeg](https://ffmpeg.org) (audio),
   [libmspack](https://github.com/kyz/libmspack) and the other libraries the ReXGlue SDK uses.
 
