@@ -23,8 +23,7 @@
 
 REXCVAR_DEFINE_BOOL(svr_60fps, false, "Game",
                     "Keep the game's frame-rate mode at 60 (50 PAL) instead of dropping to 30 (25) "
-                    "in matches; game timing follows the mode (Road to WrestleMania cutscenes "
-                    "keep 30, their captions are timed for it)");
+                    "in matches and cutscenes; game timing follows the mode");
 
 // The game keeps a frame-rate mode in a global struct at 0x82C60BC8: +8 target fps (60/50/30/25),
 // +12 mode lock, per-frame time-step floats (+28/+32/+36/+60/+64) and +40 ms per frame, all set
@@ -55,39 +54,28 @@ void SvrSetFrameRateHook(PPCRegister& r3) {
   }
 }
 
-// Scenes ask for the 30 fps mode from sub_824E2658, which reads the scene kind from the game state
-// (+4076: 4 menus, which go back to 60; 7 a match; 8 a Road to WrestleMania cutscene). Cutscene
-// captions are timed in 30 fps frames, so at 60 they show 3-5 s ahead of the voices. Players choose
-// (settings menu > Cutscenes): 60 fps (the default) or the game's own 30 fps mode, as on the
-// console, which keeps the captions in sync; the game returns to 60 when a cutscene ends.
-REXCVAR_DEFINE_BOOL(svr_cutscene_30fps, false, "Game",
-                    "Road to WrestleMania cutscenes keep the game's 30 fps mode, so their captions "
-                    "(timed in 30 fps frames) line up with the voices; at 60 fps they show early");
-
-constexpr uint32_t kSceneKindCutscene = 8;
-static std::atomic<uint32_t> g_scene_kind{0};
-
-// sub_824E2658 at the "drop to 30" call (0x824E2690), r3 = game state.
-void SvrSceneKindHook(PPCRegister& r3) {
-  g_scene_kind.store(bd::mem::load<uint32_t>(r3.u32 + 4076), std::memory_order_relaxed);
-}
-
 // "Back to 60 (50) fps mode" (sub_82477260 entry).
 void SvrBackTo60Hook() { REXLOG_INFO("[fps] game switched back to 60 fps mode"); }
 
-// "Drop to 30 (25) fps mode" (sub_824771C0 entry); returning true skips the function.
+// "Drop to 30 (25) fps mode" (sub_824771C0 entry, called for matches and Road to WrestleMania
+// cutscenes); returning true skips the function.
 bool SvrSkip30ModeHook() {
-  const uint32_t kind = g_scene_kind.exchange(0, std::memory_order_relaxed);
-  const bool cutscene = kind == kSceneKindCutscene;
-  bool skip = REXCVAR_GET(svr_60fps) && !(cutscene && REXCVAR_GET(svr_cutscene_30fps));
+  const bool skip = REXCVAR_GET(svr_60fps);
   static std::atomic<uint32_t> calls{0};
   uint32_t n = calls.fetch_add(1, std::memory_order_relaxed);
-  if (n < 20 || n % 100 == 0) {
-    REXLOG_INFO("[fps] game switched to 30 fps mode{} (scene kind {})",
-                skip ? "; kept at 60" : (cutscene && REXCVAR_GET(svr_60fps)) ? "; cutscene, kept at 30" : "",
-                kind);
-  }
+  if (n < 20 || n % 100 == 0)
+    REXLOG_INFO("[fps] game switched to 30 fps mode{}", skip ? "; kept at 60" : "");
   return skip;
+}
+
+// Cutscene captions: sub_822D4100 hands the caption display the cutscene's time (f1, at the bctrl
+// 0x822D4204), counted from the scene clock (sub_822F3240: scene object +192), which goes up by one
+// every frame. The captions' start and end times are in 30 fps frames, so in the 60 fps mode every
+// caption came at half its time and stayed half as long. Hand it 30 fps frames.
+constexpr uint32_t kFrameRateMode = 0x82C60BC8;  // +8: target fps (60/50/30/25)
+void SvrCaptionTimeHook(PPCRegister& f1) {
+  if (f1.f64 > 0 && bd::mem::load<uint32_t>(kFrameRateMode + 8) >= 50)
+    f1.f64 *= 0.5;
 }
 
 // Frame counter: SvrFrameSwapHook runs in the game's swap function (sub_8225BD40) right before it

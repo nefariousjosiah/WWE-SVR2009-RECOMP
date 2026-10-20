@@ -33,8 +33,8 @@ to run well on today's hardware.
 
 - **Native, not emulated:** the game's own code is recompiled for PC and drawn by a native renderer,
   Direct3D 12 on Windows and Vulkan on Linux and the Steam Deck.
-- **60 fps,** using the game's own 60 fps mode so everything plays at the right speed (Road to
-  WrestleMania cutscenes too).
+- **60 fps,** using the game's own 60 fps mode so everything plays at the right speed, Road to
+  WrestleMania cutscenes too (with their captions in sync).
 - **Up to 4K:** 1440p on 1080p and 1440p screens, 4K on 4K screens, 720p on the Steam Deck. The
   console's edge blur is off, for a sharper image.
 - **Smooth on lower-end PCs too:** no first-time stutters, and far less work per frame.
@@ -72,7 +72,7 @@ ID `7AFA4596`, about 7.3 GB).
 <summary><b>Settings, controllers and keyboard</b></summary>
 
 - **The settings menu:** resolution (Auto, 720p, 1440p, 4K), graphics API (Auto, Direct3D 12,
-  Vulkan), fullscreen or window, 60 or 30 fps, cutscenes, screen shape, FPS counter, sound,
+  Vulkan), fullscreen or window, 60 or 30 fps, screen shape, FPS counter, sound,
   **Language**, keyboard controls, **Controllers**, CPU priority and updates. Saved in `svr2009.toml`.
 - **Language:** the game's text and menus in English, Español, Français, Deutsch or Italiano (the
   commentary is English only, as on the disc). Pick one and press A twice to restart straight into it.
@@ -177,8 +177,6 @@ SVR2009-NATIVE\
 
 ## Known issues
 
-- **Road to WrestleMania captions at 60 fps** appear a few seconds before the line is spoken (they're
-  timed for 30 fps). **Cutscenes** > **30 fps (captions in sync)** in the settings menu fixes it.
 - **Local multiplayer:** with **Separate players**, if a controller shows up twice (Steam Input,
   DS4Windows, DSX) and the copy drops out, the game pauses for player 2 ("2P paused") until it comes
   back: close or turn off the app making the copy.

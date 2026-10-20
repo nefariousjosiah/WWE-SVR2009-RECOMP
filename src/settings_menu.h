@@ -98,7 +98,6 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
     kGraphicsApi,
     kDisplay,
     kFrameRate,
-    kCutscenes,
     kShape,
     kCounter,
     kSound,
@@ -136,10 +135,6 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
         {"Frame rate", {"60 fps", "30 fps (original)"},
          "60 fps uses the game's own 60 fps mode, so everything plays at the right speed. Takes "
          "effect from the next screen or match."},
-        {"Cutscenes", {"60 fps (captions early)", "30 fps (captions in sync)"},
-         "Road to WrestleMania cutscenes. At 60 fps they play smoother, but their captions appear a "
-         "few seconds before the line is spoken. 30 fps plays them as on the console, with the "
-         "captions in sync. From the next cutscene."},
         {"Screen shape", {"16:9 (correct)", "Stretch to fill"},
          "Matters on 16:10 screens like the Steam Deck: 16:9 keeps thin bars, stretch fills the "
          "screen."},
@@ -177,7 +172,6 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
     values_[kGraphicsApi] = api == "d3d12" ? 1 : api == "vulkan" ? 2 : 0;
     values_[kDisplay] = hooks_.is_fullscreen && hooks_.is_fullscreen() ? 0 : 1;
     values_[kFrameRate] = Get("svr_60fps") == "true" ? 0 : 1;
-    values_[kCutscenes] = Get("svr_cutscene_30fps") == "true" ? 1 : 0;
     values_[kShape] = Get("bd_aspect_ratio") == "6" ? 1 : 0;
     values_[kCounter] = hooks_.fps_counter_on && hooks_.fps_counter_on() ? 0 : 1;
     values_[kSound] = Get("audio_mute") == "true" ? 1 : 0;
@@ -226,9 +220,6 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
         break;
       case kFrameRate:
         Set("svr_60fps", v == 0 ? "true" : "false");
-        break;
-      case kCutscenes:
-        Set("svr_cutscene_30fps", v == 1 ? "true" : "false");
         break;
       case kShape:
         Set("bd_aspect_ratio", v == 1 ? "6" : "5");
