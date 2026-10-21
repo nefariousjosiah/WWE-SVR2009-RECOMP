@@ -35,8 +35,9 @@ to run well on today's hardware.
   Direct3D 12 on Windows and Vulkan on Linux and the Steam Deck.
 - **60 fps,** using the game's own 60 fps mode so everything plays at the right speed, Road to
   WrestleMania cutscenes too (with their captions in sync).
-- **Up to 4K:** 1440p on 1080p and 1440p screens, 4K on 4K screens, 720p on the Steam Deck. The
-  console's edge blur is off, for a sharper image.
+- **480p up to 8K:** Auto picks 1440p on 1080p and 1440p screens, 4K on 4K screens and 720p on the
+  Steam Deck; 480p helps weak graphics cards. The console's edge blur and its background blur (depth
+  of field) are off for a sharp image; both are settings.
 - **Smooth on lower-end PCs too:** no first-time stutters, and far less work per frame.
 - **Matches load in about 20 seconds** instead of nearly a minute.
 - **Play in your language:** English, Español, Français, Deutsch or Italiano.
@@ -71,8 +72,8 @@ ID `7AFA4596`, about 7.3 GB).
 <details>
 <summary><b>Settings, controllers and keyboard</b></summary>
 
-- **The settings menu:** resolution (Auto, 720p, 1440p, 4K), graphics API (Auto, Direct3D 12,
-  Vulkan), fullscreen or window, 60 or 30 fps, screen shape, FPS counter, sound,
+- **The settings menu:** resolution (Auto, 480p, 720p, 1080p, 1440p, 4K, 8K), graphics API (Auto, Direct3D 12,
+  Vulkan), fullscreen or window, 60 or 30 fps, screen shape, **Edge blur**, **Background blur**, FPS counter, sound,
   **Language**, keyboard controls, **Controllers**, CPU priority and updates. Saved in `svr2009.toml`.
 - **Language:** the game's text and menus in English, Español, Français, Deutsch or Italiano (the
   commentary is English only, as on the disc). Pick one and press A twice to restart straight into it.
