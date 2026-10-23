@@ -35,6 +35,13 @@ name = "SvrLoaderBudgetHook"
 address = 0x82477A58
 registers = ["f13"]
 
+# Wide and tall screens (src/widescreen.cpp): the camera setup (sub_82483BD0) about to build the
+# projection (bl sub_824836C0), f1 = field of view, f2 = aspect.
+[[midasm_hook]]
+name = "SvrCameraAspectHook"
+address = 0x82483C20
+registers = ["f1", "f2"]
+
 [functions]
 # Branch targets analysis left outside any function (codegen UnresolvedCall).
 0x82792108 = {}

@@ -73,10 +73,13 @@ ID `7AFA4596`, about 7.3 GB).
 <summary><b>Settings, controllers and keyboard</b></summary>
 
 - **The settings menu:** resolution (Auto, 480p, 720p, 1080p, 1440p, 4K, 8K), graphics API (Auto, Direct3D 12,
-  Vulkan), fullscreen or window, 60 or 30 fps, screen shape, **Edge blur**, **Background blur**, FPS counter, sound,
+  Vulkan), fullscreen or window, 60 or 30 fps, **Screen shape**, **Edge blur**, **Background blur**, FPS counter, sound,
   **Language**, keyboard controls, **Controllers**, CPU priority and updates. Saved in `svr2009.toml`.
 - **Language:** the game's text and menus in English, Español, Français, Deutsch or Italiano (the
   commentary is English only, as on the disc). Pick one and press A twice to restart straight into it.
+- **Screen shape (experimental):** 16:10 (Steam Deck, many laptops), 21:9 and 32:9 (ultrawide).
+  Gameplay fills the screen (matches, entrances and cutscenes show more of the arena, nothing
+  stretched, the HUD in its usual place); menus stay 16:9 for now.
 - **Controllers:** plug yours in before starting. By default every controller controls player 1; for
   **local multiplayer**, set **Controllers** to **Separate players**.
 - **Disc image somewhere else?** If there's no `.iso` in the folder, the game asks for one the first

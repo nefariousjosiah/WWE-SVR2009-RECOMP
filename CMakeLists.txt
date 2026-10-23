@@ -4,7 +4,7 @@
 
 cmake_minimum_required(VERSION 3.25)
 # The release version (shown in the in-game settings menu; package_release.ps1 uses it too).
-project(svr2009 VERSION 2.0.4 LANGUAGES CXX)
+project(svr2009 VERSION 2.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -19,6 +19,7 @@ set(SVR2009_SOURCES
     src/input_script.cpp
     src/timer_resolution.cpp
     src/loading_hooks.cpp
+    src/widescreen.cpp
     src/updater.cpp
 )
 
