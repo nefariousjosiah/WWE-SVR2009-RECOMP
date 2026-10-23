@@ -59,7 +59,7 @@ index 0000000..6a829d8
 +
 +}  // namespace rex::audio
 diff --git a/include/rex/audio/xma/context.h b/include/rex/audio/xma/context.h
-index 8426798..93397ed 100644
+index 8426798..8d28025 100644
 --- a/include/rex/audio/xma/context.h
 +++ b/include/rex/audio/xma/context.h
 @@ -247,7 +247,9 @@ class XmaContext {
@@ -73,7 +73,15 @@ index 8426798..93397ed 100644
    uint8_t* GetCurrentInputBuffer(XMA_CONTEXT_DATA* data);
  
    void Decode(XMA_CONTEXT_DATA* data);
-@@ -306,6 +308,11 @@ class XmaContext {
+@@ -255,6 +257,7 @@ class XmaContext {
+   void UpdateLoopStatus(XMA_CONTEXT_DATA* data);
+   void ClearLocked(XMA_CONTEXT_DATA* data);
+   void ResetDecoderState();
++  void FlushCarry(XMA_CONTEXT_DATA* data);
+ 
+   memory::RingBuffer PrepareOutputRingBuffer(XMA_CONTEXT_DATA* data);
+   int PrepareDecoder(int sample_rate, bool is_two_channel);
+@@ -306,6 +309,11 @@ class XmaContext {
    bool carry_valid_ = false;
    uint8_t pending_output_limit_ = 0;
    uint8_t pending_start_skip_ = 0;
@@ -794,10 +802,35 @@ index 0000000..479790d
 +
 +}  // namespace rex::audio
 diff --git a/src/audio/xma_context.cpp b/src/audio/xma_context.cpp
-index 11b83be..ae4b635 100644
+index 11b83be..e73ba80 100644
 --- a/src/audio/xma_context.cpp
 +++ b/src/audio/xma_context.cpp
-@@ -206,6 +206,7 @@ void XmaContext::ResetDecoderState() {
+@@ -136,9 +136,23 @@ bool XmaContext::Work() {
+     Decode(&data);
+     Consume(&output_rb, &data);
+ 
+-    if (!data.IsAnyInputBufferValid() || data.error_status == 4) {
++    if (data.error_status == 4) {
+       break;
+     }
++    if (!data.IsAnyInputBufferValid()) {
++      // The input is used up. Decode runs one frame behind (see the realignment there), so the
++      // last frame's tail is still in carry_frame_: write it out now, or the stream comes out a
++      // frame short and the game plays past the end of what was decoded, replaying the output
++      // buffer's old contents (the end of a commentary line stretched, SvR 2009 issue #7). Then
++      // keep consuming until that frame is written.
++      if (current_frame_remaining_subframes_ == 0 && carry_valid_) {
++        FlushCarry(&data);
++        continue;
++      }
++      if (current_frame_remaining_subframes_ == 0) {
++        break;
++      }
++    }
+   }
+ 
+   data.output_buffer_write_offset = output_rb.write_offset() / kOutputBytesPerBlock;
+@@ -206,6 +220,7 @@ void XmaContext::ResetDecoderState() {
    carry_valid_ = false;
    pending_output_limit_ = 0;
    pending_start_skip_ = 0;
@@ -805,7 +838,32 @@ index 11b83be..ae4b635 100644
    current_frame_remaining_subframes_ = 0;
    loop_frame_output_limit_ = 0;
    loop_start_skip_pending_ = false;
-@@ -304,11 +305,18 @@ const uint8_t* XmaContext::GetNextPacket(XMA_CONTEXT_DATA* data, uint32_t next_p
+@@ -226,6 +241,24 @@ void XmaContext::Release() {
+   std::memset(context_ptr, 0, sizeof(XMA_CONTEXT_DATA));
+ }
+ 
++// End of the input: the frame whose tail is held back in carry_frame_ is finished with silence
++// where the next frame's head would have gone (the decoder needs the next frame for those samples).
++// If more input comes after all, the next decode starts without a carry, which drops exactly that
++// head, so the samples stay aligned; only those few samples are silent instead of decoded.
++void XmaContext::FlushCarry(XMA_CONTEXT_DATA* data) {
++  const size_t pad_bytes = kDecoderStartPadding * kBytesPerSample << data->is_stereo;
++  const size_t carry_bytes = (kBytesPerFrameChannel << data->is_stereo) - pad_bytes;
++  std::memcpy(raw_frame_.data(), carry_frame_.data(), carry_bytes);
++  std::memset(raw_frame_.data() + carry_bytes, 0, pad_bytes);
++  current_frame_remaining_subframes_ = 4 << data->is_stereo;
++  loop_frame_output_limit_ = pending_output_limit_;
++  current_frame_remaining_subframes_ -=
++      std::min(pending_start_skip_, current_frame_remaining_subframes_);
++  pending_output_limit_ = 0;
++  pending_start_skip_ = 0;
++  carry_valid_ = false;
++}
++
+ void XmaContext::SwapInputBuffer(XMA_CONTEXT_DATA* data) {
+   if (data->current_buffer == 0) {
+     data->input_buffer_0_valid = 0;
+@@ -304,11 +337,18 @@ const uint8_t* XmaContext::GetNextPacket(XMA_CONTEXT_DATA* data, uint32_t next_p
      return nullptr;
    }
  
@@ -826,7 +884,7 @@ index 11b83be..ae4b635 100644
    while (next_packet_index < current_input_packet_count) {
      uint8_t* next_packet = buffer + (next_packet_index * kBytesPerPacket);
      const uint32_t packet_frame_offset = xma::GetPacketFrameOffset(next_packet);
-@@ -316,12 +324,52 @@ uint32_t XmaContext::GetNextPacketReadOffset(uint8_t* buffer, uint32_t next_pack
+@@ -316,12 +356,52 @@ uint32_t XmaContext::GetNextPacketReadOffset(uint8_t* buffer, uint32_t next_pack
      if (packet_frame_offset <= kMaxFrameSizeinBits) {
        return (next_packet_index * kBitsPerPacket) + packet_frame_offset;
      }
@@ -880,7 +938,7 @@ index 11b83be..ae4b635 100644
  memory::RingBuffer XmaContext::PrepareOutputRingBuffer(XMA_CONTEXT_DATA* data) {
    const uint32_t output_capacity = data->output_buffer_block_count * kOutputBytesPerBlock;
    const uint32_t output_read_offset = data->output_buffer_read_offset * kOutputBytesPerBlock;
-@@ -545,6 +593,16 @@ void XmaContext::Decode(XMA_CONTEXT_DATA* data) {
+@@ -545,6 +625,16 @@ void XmaContext::Decode(XMA_CONTEXT_DATA* data) {
  
    uint8_t* current_input_buffer = GetCurrentInputBuffer(data);
  
@@ -897,7 +955,7 @@ index 11b83be..ae4b635 100644
    input_buffer_.fill(0);
  
    // Loop-end frame: decode it here (output limited to loop_subframe_end),
-@@ -588,10 +646,13 @@ void XmaContext::Decode(XMA_CONTEXT_DATA* data) {
+@@ -588,10 +678,13 @@ void XmaContext::Decode(XMA_CONTEXT_DATA* data) {
  
    // Full packet skip (0xFF) -- no new frames begin in this packet.
    if (skip_count == 0xFF) {
@@ -913,7 +971,7 @@ index 11b83be..ae4b635 100644
      }
      data->input_buffer_read_offset = next_input_offset;
      return;
-@@ -722,20 +783,16 @@ void XmaContext::Decode(XMA_CONTEXT_DATA* data) {
+@@ -722,20 +815,16 @@ void XmaContext::Decode(XMA_CONTEXT_DATA* data) {
      return;
    }
  
