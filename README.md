@@ -78,8 +78,8 @@ ID `7AFA4596`, about 7.3 GB).
 - **Language:** the game's text and menus in English, Español, Français, Deutsch or Italiano (the
   commentary is English only, as on the disc). Pick one and press A twice to restart straight into it.
 - **Screen shape (experimental):** 16:10 (Steam Deck, many laptops), 21:9 and 32:9 (ultrawide).
-  Gameplay fills the screen (matches, entrances and cutscenes show more of the arena, nothing
-  stretched, the HUD in its usual place); menus stay 16:9 for now.
+  The whole game fills the screen: matches, entrances and cutscenes show more of the arena, nothing
+  stretched; menu backgrounds reach the edges while text and panels keep their shape.
 - **Controllers:** plug yours in before starting. By default every controller controls player 1; for
   **local multiplayer**, set **Controllers** to **Separate players**.
 - **Disc image somewhere else?** If there's no `.iso` in the folder, the game asks for one the first
@@ -122,8 +122,8 @@ The Windows release runs through Proton, Steam's compatibility layer: 720p at 60
 - **The first start** takes a little longer while Proton sets itself up.
 - **Settings:** press **View + Menu** together. To use a back button instead: the game's
   *Controller settings* > *Edit Layout* > *Back Grip Buttons* > **L4** > *Keyboard* > **F1**.
-- **Black bars:** the game is 16:9 and the Deck's screen 16:10; *Screen shape* > *Stretch to fill*
-  in the settings menu fills it.
+- **Black bars:** the game is 16:9 and the Deck's screen 16:10; *Screen shape* > *16:10* in the
+  settings menu fills it without stretching (experimental), *Stretch to fill* by stretching.
 - **Quit** with the Steam button > *Exit game*. You can rename the shortcut (*WWE SmackDown vs. Raw
   2009*) and set its artwork in its properties.
 
