@@ -235,7 +235,8 @@ powershell -ExecutionPolicy Bypass -File tools\windows\setup.ps1 -Iso "D:\path\t
 `setup.ps1` installs the tools it needs (Git, CMake, Ninja, LLVM clang, Python, 7-Zip, Visual Studio
 2022 Build Tools), fetches the third-party sources at the pinned commits and applies this project's
 patches (`patches/`), builds the ReXGlue SDK, extracts your disc image to `assets/`, recompiles
-`default.xex` and builds the game.
+`default.xex` and builds the game. For LLVM somewhere other than `C:\Program Files\LLVM`, set
+`$env:LLVM_ROOT` to its folder and pass `-SkipInstall`.
 
 The native renderer also needs your game's shaders, which can't be in this repository. The first
 time, `setup.ps1` builds a shader-dump version and tells you how to collect them: play the menus
