@@ -22,6 +22,13 @@
 
 #include <plume_render_interface.h>
 
+#if defined(_WIN32)
+#include "core/windows_lean.h"
+#endif
+#if defined(__x86_64__) || defined(_M_X64)
+#include <immintrin.h>
+#endif
+
 #include "gpu/gpu_profiling.h"
 
 #include "core/logging.h"
@@ -43,6 +50,45 @@ void ApplyVsync(VideoState &s) {
 
 constexpr i32 kIdleFPS = 30;
 
+// Blocks until `target`: a high-resolution waitable timer for the bulk, then a
+// short spin, since a timer wake lands anywhere within a fraction of a
+// millisecond (and sleep_until within 1 ms or more).
+void WaitUntil(std::chrono::steady_clock::time_point target) {
+  using Clock = std::chrono::steady_clock;
+  constexpr auto kSpin = std::chrono::microseconds(1000);
+#if defined(_WIN32)
+  static const HANDLE timer = CreateWaitableTimerExW(
+      nullptr, nullptr, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
+  if (timer) {
+    const auto remaining = target - Clock::now() - kSpin;
+    if (remaining > std::chrono::microseconds(100)) {
+      LARGE_INTEGER due;  // Negative: relative, in 100 ns units.
+      due.QuadPart =
+          -std::chrono::duration_cast<std::chrono::nanoseconds>(remaining)
+               .count() /
+          100;
+      if (SetWaitableTimer(timer, &due, 0, nullptr, nullptr, FALSE))
+        WaitForSingleObject(timer, INFINITE);
+    }
+  } else
+#endif
+  {
+    std::this_thread::sleep_until(target - kSpin);
+  }
+  while (Clock::now() < target) {
+#if defined(__x86_64__) || defined(_M_X64)
+    _mm_pause();
+#else
+    std::this_thread::yield();
+#endif
+  }
+}
+
+// Holds each present to a fixed grid. The game's own swap wait follows the guest
+// vblank, which runs at the same rate from an unrelated start: a frame that just
+// misses its slot moves the grid later by that much, so the grid settles behind
+// those arrivals and absorbs their jitter. A really late frame presents at once
+// and the grid stays put: its next slot still in the future is the next target.
 void PaceFrame(bool idle = false) {
   using Clock = std::chrono::steady_clock;
   static Clock::time_point next{};
@@ -58,12 +104,20 @@ void PaceFrame(bool idle = false) {
   const auto period = std::chrono::duration_cast<Clock::duration>(
       std::chrono::duration<double, std::milli>(1000.0 / fps));
   const auto now = Clock::now();
-  if (next.time_since_epoch().count() != 0 && now < next) {
-    std::this_thread::sleep_until(next);
-    next += period;
-  } else {
+  // Also covers a rise in frame rate, whose pending target used the longer period.
+  if (next.time_since_epoch().count() == 0 || next > now + period) {
     next = now + period;
+    return;
   }
+  if (now < next) {
+    WaitUntil(next);
+    next += period;
+    return;
+  }
+  const auto late = now - next;
+  constexpr auto kPhaseAdjustLimit = std::chrono::milliseconds(3);
+  next = late <= kPhaseAdjustLimit ? now + period
+                                   : next + period * (late / period + 1);
 }
 
 void AbandonFrame(VideoState &s, std::unique_lock<std::mutex> &lock) {
@@ -252,6 +306,20 @@ void Video::Present(GuestTexture *frontBuffer) {
     return;
   }
 
+  // Pace here rather than after the present: the game's CPU work for a frame
+  // varies by milliseconds and would otherwise land on every present time.
+  // Nothing below takes long, and other threads need the lock during the wait.
+  const bool idle = s.framebuffers.empty();
+  lock.unlock();
+  {
+    BD_CPU_ZONE("PaceFrame");
+    PaceFrame(idle);
+  }
+  lock.lock();
+  if (!s.ready || s.shutting_down.load(std::memory_order_acquire)) {
+    return;
+  }
+
   const bool resize_requested =
       s.resize_requested.exchange(false, std::memory_order_acq_rel);
   if (s.swap_chain->needsResize() || resize_requested) {
@@ -260,9 +328,6 @@ void Video::Present(GuestTexture *frontBuffer) {
 
   if (s.framebuffers.empty()) {
     AbandonFrame(s, lock);
-    if (lock.owns_lock())
-      lock.unlock();
-    PaceFrame(true);
     return;
   }
 
@@ -347,10 +412,6 @@ void Video::Present(GuestTexture *frontBuffer) {
   {
     BD_CPU_ZONE("DrainSlot");
     DrainSlot(s, reclaimed);
-  }
-  {
-    BD_CPU_ZONE("PaceFrame");
-    PaceFrame();
   }
 }
 

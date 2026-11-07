@@ -6,6 +6,9 @@
 
 #pragma once
 
+// The game's current frame-rate mode: 60, 50, 30 or 25 (src/fps_hooks.cpp).
+int SvrFrameRateMode();
+
 namespace bd::engine {
 
 // Blue Dragon skips presenting some frames while its frame interpolation runs; SvR presents every
@@ -23,9 +26,8 @@ struct Settings {
     static Settings settings;
     return settings;
   }
-  // SvR's game logic runs at the 60 fps mode src/fps_hooks.cpp keeps it in, and its own vblank
-  // pacing no longer gates presents (the null GPU skips swaps), so presents are capped at 60.
-  int FPSLimit() const { return 60; }
+  // Presents follow the game's frame-rate mode.
+  int FPSLimit() const { return SvrFrameRateMode(); }
 };
 
 }  // namespace bd::engine

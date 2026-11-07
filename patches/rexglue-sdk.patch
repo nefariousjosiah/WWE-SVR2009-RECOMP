@@ -1196,10 +1196,81 @@ index a5c97a0..9da2787 100644
  
    D3D12_DESCRIPTOR_HEAP_DESC buffer_descriptor_heap_desc;
 diff --git a/src/graphics/graphics_system.cpp b/src/graphics/graphics_system.cpp
-index 8f2fcb0..df6f299 100644
+index 8f2fcb0..0916f2c 100644
 --- a/src/graphics/graphics_system.cpp
 +++ b/src/graphics/graphics_system.cpp
-@@ -217,6 +217,9 @@ void GraphicsSystem::OnHostGpuLossFromAnyThread([[maybe_unused]] bool is_respons
+@@ -31,6 +31,11 @@
+ #include <rex/ui/window.h>
+ #include <rex/ui/windowed_app_context.h>
+ 
++#if REX_PLATFORM_WIN32
++#define WIN32_LEAN_AND_MEAN
++#include <windows.h>
++#endif
++
+ REXCVAR_DEFINE_STRING(swap_post_effect, "none", "GPU", "Swap post effect: none, fxaa, fxaa_extreme")
+     .allowed({"none", "fxaa", "fxaa_extreme"})
+     .lifecycle(rex::cvar::Lifecycle::kRequiresRestart);
+@@ -72,6 +77,45 @@ __declspec(dllexport) uint32_t AmdPowerXpressRequestHighPerformance = 1;
+ }  // extern "C"
+ #endif  // REX_PLATFORM_WIN32
+ 
++namespace {
++
++// Waits until the guest clock reaches target_tick. Games gate their swaps on the vblank, so its
++// timing error reaches every present: a 1 ms sleep poll puts each one up to 2 ms late. A
++// high-resolution timer for the bulk and a short spin hold it to microseconds.
++void WaitForGuestTick(uint64_t target_tick) {
++  const double ticks_per_ms = double(chrono::Clock::guest_tick_frequency()) / 1000.0;
++  const auto remaining_ms = [&] {
++    const uint64_t now = chrono::Clock::QueryGuestTickCount();
++    return now >= target_tick ? 0.0 : double(target_tick - now) / ticks_per_ms;
++  };
++  constexpr double kSpinMs = 1.0;
++#if REX_PLATFORM_WIN32
++  thread_local const HANDLE timer = CreateWaitableTimerExW(
++      nullptr, nullptr, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
++  if (timer) {
++    const double sleep_ms = remaining_ms() - kSpinMs;
++    if (sleep_ms > 0.1) {
++      LARGE_INTEGER due;  // Negative: relative, in 100 ns units.
++      due.QuadPart = -int64_t(sleep_ms * 10000.0);
++      if (SetWaitableTimer(timer, &due, 0, nullptr, nullptr, FALSE)) {
++        WaitForSingleObject(timer, INFINITE);
++      }
++    }
++  } else
++#endif
++  {
++    const double sleep_ms = remaining_ms() - kSpinMs;
++    if (sleep_ms >= 1.0) {
++      rex::thread::Sleep(std::chrono::milliseconds(int64_t(sleep_ms)));
++    }
++  }
++  while (remaining_ms() > 0.0) {
++    rex::thread::MaybeYield();
++  }
++}
++
++}  // namespace
++
+ GraphicsSystem::GraphicsSystem() : vsync_worker_running_(false) {}
+ 
+ GraphicsSystem::~GraphicsSystem() = default;
+@@ -166,7 +210,11 @@ X_STATUS GraphicsSystem::SetupGuestGpu(runtime::FunctionDispatcher* function_dis
+             MarkVblank();
+             last_frame_time += interval_ticks;
+           }
+-          rex::thread::Sleep(std::chrono::milliseconds(1));
++          if (REXCVAR_GET(vsync)) {
++            WaitForGuestTick(last_frame_time + interval_ticks);
++          } else {
++            rex::thread::Sleep(std::chrono::milliseconds(1));
++          }
+         }
+         return 0;
+       }));
+@@ -217,6 +265,9 @@ void GraphicsSystem::OnHostGpuLossFromAnyThread([[maybe_unused]] bool is_respons
    if (host_gpu_loss_reported_.test_and_set(std::memory_order_relaxed)) {
      return;
    }
