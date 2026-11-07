@@ -89,9 +89,13 @@ void WaitUntil(std::chrono::steady_clock::time_point target) {
 // misses its slot moves the grid later by that much, so the grid settles behind
 // those arrivals and absorbs their jitter. A really late frame presents at once
 // and the grid stays put: its next slot still in the future is the next target.
+// Frames that keep arriving late mean the grid has lost its phase, not that the
+// game has hitched: every one would present at once, unpaced, for as long as the
+// phase lasts, so after a few the grid moves behind them.
 void PaceFrame(bool idle = false) {
   using Clock = std::chrono::steady_clock;
   static Clock::time_point next{};
+  static u32 late_frames = 0;
   i32 fps = bd::engine::Settings::Get().FPSLimit();
   if (bd::engine::SofdecPlayer::Playing())
     fps = 30;
@@ -110,14 +114,20 @@ void PaceFrame(bool idle = false) {
     return;
   }
   if (now < next) {
+    late_frames = 0;
     WaitUntil(next);
     next += period;
     return;
   }
   const auto late = now - next;
   constexpr auto kPhaseAdjustLimit = std::chrono::milliseconds(3);
-  next = late <= kPhaseAdjustLimit ? now + period
-                                   : next + period * (late / period + 1);
+  constexpr u32 kLostPhaseFrames = 8;
+  if (late <= kPhaseAdjustLimit || ++late_frames >= kLostPhaseFrames) {
+    late_frames = 0;
+    next = now + period;
+  } else {
+    next += period * (late / period + 1);
+  }
 }
 
 void AbandonFrame(VideoState &s, std::unique_lock<std::mutex> &lock) {
