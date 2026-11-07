@@ -74,9 +74,13 @@ ID `7AFA4596`, about 7.3 GB).
 
 - **The settings menu:** resolution (Auto, 480p, 720p, 1080p, 1440p, 4K, 8K), graphics API (Auto, Direct3D 12,
   Vulkan), fullscreen or window, 60 or 30 fps, **Screen shape**, **Edge blur**, **Background blur**, FPS counter, sound,
-  **Language**, keyboard controls, **Controllers**, CPU priority and updates. Saved in `svr2009.toml`.
+  **Language**, **Unlock everything**, keyboard controls, **Controllers**, CPU priority and updates.
+  Saved in `svr2009.toml`.
 - **Language:** the game's text and menus in English, Español, Français, Deutsch or Italiano (the
   commentary is English only, as on the disc). Pick one and press A twice to restart straight into it.
+- **Unlock everything:** every superstar, arena, attire and other reward is available. Best treated
+  as permanent: switching it off brings back your own progress, but rewards you earn while it's on
+  are not saved. DLC you haven't added stays out.
 - **Screen shape (experimental):** 16:10 (Steam Deck, many laptops), 21:9 and 32:9 (ultrawide).
   The whole game fills the screen: matches, entrances and cutscenes show more of the arena, nothing
   stretched; menu backgrounds reach the edges while text and panels keep their shape.

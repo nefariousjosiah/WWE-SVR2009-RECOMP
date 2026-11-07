@@ -61,3 +61,42 @@ registers = []
 name = "SvrCaptionTimeHook"
 address = 0x822D4204
 registers = ["f1"]
+
+# Unlock everything (src/unlock_all.cpp): the check of item N (sub_8255E740) has just read the item's
+# byte into r3 (r31 = the item).
+[[midasm_hook]]
+name = "SvrUnlockAllHook"
+address = 0x8255E770
+registers = ["r3", "r31"]
+after_instruction = true
+
+# The checks for one kind of thing: true jumps to where they answer "available". sub_8255E9B0, the
+# superstars, past its check for downloaded ones.
+[[midasm_hook]]
+name = "SvrUnlockAllOn"
+address = 0x8255EA14
+jump_address_on_true = 0x8255EDC0
+
+# sub_8255EDD8
+[[midasm_hook]]
+name = "SvrUnlockAllOn"
+address = 0x8255EDE4
+jump_address_on_true = 0x8255EDF4
+
+# sub_8255EEE8
+[[midasm_hook]]
+name = "SvrUnlockAllOn"
+address = 0x8255EEFC
+jump_address_on_true = 0x8255EF3C
+
+# sub_8255EF50
+[[midasm_hook]]
+name = "SvrUnlockAllOn"
+address = 0x8255EF84
+jump_address_on_true = 0x8255EFB8
+
+# sub_8255EFD8
+[[midasm_hook]]
+name = "SvrUnlockAllOn"
+address = 0x8255EFE8
+jump_address_on_true = 0x8255F010
