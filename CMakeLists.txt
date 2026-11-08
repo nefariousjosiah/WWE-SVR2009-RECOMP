@@ -57,6 +57,8 @@ if(SVR_NATIVE_RENDERER AND SVR_D3D_CENSUS)
 endif()
 if(SVR_D3D_CENSUS)
     target_sources(svr2009 PRIVATE src/dev/d3d_census.cpp src/dev/shader_dump.cpp)
+    # src/fps_hooks.cpp reads guest memory through the renderer's header-only helper.
+    target_include_directories(svr2009 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/reblue)
 endif()
 if(SVR_NATIVE_RENDERER)
     include(cmake/native_renderer.cmake)

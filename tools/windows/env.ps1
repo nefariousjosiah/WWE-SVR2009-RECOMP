@@ -4,9 +4,13 @@
 $Root = (Resolve-Path "$PSScriptRoot\..\..").Path
 # Game files: this project's own assets\ folder (extracted from your ISO). SDK: .\sdk.
 $Main = $Root  # this project keeps its own game files in assets\
-$Clang = "C:\Program Files\LLVM\bin\clang.exe"
-$ClangXX = "C:\Program Files\LLVM\bin\clang++.exe"
-if (-not (Test-Path $ClangXX)) { throw "LLVM not found at C:\Program Files\LLVM (winget install LLVM.LLVM)" }
+#   $env:LLVM_ROOT = "D:\path\to\llvm"   # default: C:\Program Files\LLVM
+$LlvmRoot = if ($env:LLVM_ROOT) { $env:LLVM_ROOT } else { "C:\Program Files\LLVM" }
+$Clang = "$LlvmRoot\bin\clang.exe"
+$ClangXX = "$LlvmRoot\bin\clang++.exe"
+if (-not (Test-Path $ClangXX)) { throw "LLVM not found at $LlvmRoot (winget install LLVM.LLVM)" }
+# The CMake presets name the C compiler as plain "clang".
+$env:Path = "$LlvmRoot\bin;$env:Path"
 
 if (-not $env:VSCMD_VER) {
   $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"

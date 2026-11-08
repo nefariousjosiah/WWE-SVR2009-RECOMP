@@ -47,6 +47,7 @@ namespace bd::gpu {
 #if defined(SVR_NATIVE_RENDERER)
 // src/native/svr_pipeline_store.cpp: pipelines stored by earlier runs, and the store's writer.
 std::vector<PipelineState> SvrLoadPipelineStore();
+std::vector<PipelineState> SvrSpeculatePipelines(const std::vector<PipelineState> &stored);
 void SvrRecordPipeline(const PipelineState &state, u64 vs, u64 ps, u64 decl);
 #endif
 
@@ -109,11 +110,14 @@ bool InResidual(const PipelineState &state, u64 vsHash, u64 psHash,
 // notifications re-scan and enqueue them once resolvable.
 std::mutex g_replayMutex;
 std::vector<PipelineState> g_replayPending;
+// Guessed variants: same wait, but compiled behind everything known to be needed.
+std::vector<PipelineState> g_speculativePending;
 bool g_replayActive = false;
 
 // Returns false (leaving the entry for later) if any shader/decl is missing.
 // Caller holds g_replayMutex.
-bool TryResolveAndEnqueueLocked(const PipelineState &entry) {
+bool TryResolveAndEnqueueLocked(const PipelineState &entry,
+                                bool speculative = false) {
   GuestShader *vs = FindGuestShaderByHash(HashFromPtr(entry.vertexShader));
   if (!vs)
     return false;
@@ -136,7 +140,8 @@ bool TryResolveAndEnqueueLocked(const PipelineState &entry) {
   // Residual entries resolve the moment their last shader/decl is created,
   // which is typically right before their first draw, so they must jump the
   // background backlog, tokenless so they never gate a model load.
-  EnqueuePipelinePriority(resolved);
+  const auto enqueue = speculative ? EnqueuePipeline : EnqueuePipelinePriority;
+  enqueue(resolved);
   // The capture masks sampleCount to COUNT_1 so the store stays
   // config-independent, but under bd_msaa the scene pass draws at the cvar
   // count, so precompile that twin or every scene PSO becomes a render thread
@@ -147,20 +152,25 @@ bool TryResolveAndEnqueueLocked(const PipelineState &entry) {
       plume::RenderFormatIsStencil(resolved.depthStencilFormat)) {
     PipelineState ms = resolved;
     ms.sampleCount = msaa;
-    EnqueuePipelinePriority(ms);
+    enqueue(ms);
   }
   return true;
 }
 
-void DrainPendingLocked() {
-  for (size_t i = 0; i < g_replayPending.size();) {
-    if (TryResolveAndEnqueueLocked(g_replayPending[i])) {
-      g_replayPending[i] = g_replayPending.back();
-      g_replayPending.pop_back();
+void DrainListLocked(std::vector<PipelineState> &list, bool speculative) {
+  for (size_t i = 0; i < list.size();) {
+    if (TryResolveAndEnqueueLocked(list[i], speculative)) {
+      list[i] = list.back();
+      list.pop_back();
     } else {
       ++i;
     }
   }
+}
+
+void DrainPendingLocked() {
+  DrainListLocked(g_replayPending, false);
+  DrainListLocked(g_speculativePending, true);
 }
 
 #ifdef REBLUE_PSO_CAP
@@ -468,6 +478,7 @@ void ReplayBootCache() {
     return;
   g_replayActive = true;
   g_replayPending.clear();
+  g_speculativePending.clear();
   size_t immediate = 0;
   for (const auto &entry : g_pipelineStateCache) {
     if (TryResolveAndEnqueueLocked(entry))
@@ -477,11 +488,16 @@ void ReplayBootCache() {
   }
 #if defined(SVR_NATIVE_RENDERER)
   // Pipelines earlier runs compiled on the render thread (svr_pipeline_store.cpp).
-  for (const auto &entry : SvrLoadPipelineStore()) {
+  const std::vector<PipelineState> stored = SvrLoadPipelineStore();
+  for (const auto &entry : stored) {
     if (TryResolveAndEnqueueLocked(entry))
       ++immediate;
     else
       g_replayPending.push_back(entry);
+  }
+  for (const auto &entry : SvrSpeculatePipelines(stored)) {
+    if (!TryResolveAndEnqueueLocked(entry, true))
+      g_speculativePending.push_back(entry);
   }
 #endif
 }
@@ -494,13 +510,13 @@ void FlushPSOCapture() {
 
 void OnShaderCreated(u64) {
   std::lock_guard<std::mutex> lock(g_replayMutex);
-  if (g_replayActive && !g_replayPending.empty())
+  if (g_replayActive)
     DrainPendingLocked();
 }
 
 void OnVertexDeclarationCreated(u64) {
   std::lock_guard<std::mutex> lock(g_replayMutex);
-  if (g_replayActive && !g_replayPending.empty())
+  if (g_replayActive)
     DrainPendingLocked();
 }
 
