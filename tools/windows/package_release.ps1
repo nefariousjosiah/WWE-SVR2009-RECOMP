@@ -26,7 +26,33 @@ if (-not (Select-String -Path "$BuildD3D12\CMakeCache.txt" -Pattern "^SVR_D3D12:
 
 $Out = "$Root\dist\$Name-v$Version"
 if (Test-Path $Out) { Remove-Item $Out -Recurse -Force }
-New-Item -ItemType Directory -Force $Out, "$Out\licenses", "$Out\dlc", "$Out\music" | Out-Null
+New-Item -ItemType Directory -Force $Out, "$Out\licenses", "$Out\dlc", "$Out\music", "$Out\mods" | Out-Null
+# The mods folder (src/mods.h): its how-to. The updater never touches the folder.
+@"
+Mods for WWE SmackDown vs. Raw 2009
+===================================
+
+Extract each mod into this folder, as a folder of its own, then start the game.
+
+- Extract it fully: if the mod's folder has another archive inside (like the root.7z of SVR09+),
+  extract that one right where it is too ("Extract here"). A mod still packed shows on the Mods
+  page as "Can't use", with what to extract.
+- The Mods page (F5, or Mods at the top of the settings menu: F1, or Back + Start on a
+  controller) lists your mods and switches each one on or off. Switching applies after a restart.
+- A mod's files replace the game's own files with the same path or name (pac\ch\ch12.pac); the
+  disc image itself is never changed. When two mods replace the same file, the later one in
+  alphabetical order wins.
+- Mods made for the Xbox 360 often come with a save and DLC (in a Content folder). Those play with
+  saves of their own, in userdata-mods next to userdata: the mod's DLC is installed there and its
+  save copied in the first time. Your own saves and DLC are left as they are and come back when
+  you switch the mod off.
+- Some mods also patch the game's program (default.xex, with an .xdelta file). This port can't use
+  those patches; the Mods page says when a mod has one. SVR09+ by yumboy11 (version 1.1) is
+  supported: its program changes are built in.
+- Updates never touch this folder.
+- On the Steam Deck, switch to Desktop Mode to extract mods in (right-click the archive in the
+  file manager: Extract > Extract archive here), then go back to Game Mode.
+"@ | Set-Content "$Out\mods\PUT YOUR MODS HERE.txt" -Encoding ascii
 @"
 Optional: your own WWE SmackDown vs. Raw 2009 DLC goes in this folder.
 
@@ -139,11 +165,15 @@ Graphics: $Id.exe draws with Direct3D 12 on Windows; on Steam Deck / Linux it st
 $($Id)_vulkan.exe (Vulkan) by itself. Settings > Graphics API switches between them.
 Saves: the userdata folder (created on first start). If something goes wrong, send game.log.
 Updates: when a new version is out, the game says so at startup; install it from the settings
-menu (Update), only if you want to. Your saves, settings, DLC, music and disc image are kept, and your
-saves are backed up to the save_backups folder first. Turn the check off there too.
+menu (Update), only if you want to. Your saves, settings, DLC, music, mods and disc image are
+kept, and your saves (the mods' own saves too) are backed up to the save_backups folder first.
+Turn the check off there too.
 DLC: if you own SvR 2009's DLC, put your own package files in the dlc folder (see the note there).
 Entrance music: your own songs (MP3) in the music folder are the "User Playlist" choice for
 entrances (see the note there).
+Mods: extract mods into the mods folder (see the note there), such as SVR09+ by yumboy11. Press
+F5 (or Mods in the settings menu) to switch them on or off. A mod with its own save plays with
+saves of its own, in userdata-mods: your own saves stay as they are.
 
 Licence: this program is free software under the GNU General Public License v3.0
 (licenses/this project (GPL-3.0).txt); the other licences are in the licenses folder.

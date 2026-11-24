@@ -42,6 +42,8 @@ class Updater {
     std::string current_version;  // e.g. "0.4"
     std::filesystem::path game_dir;
     std::filesystem::path user_data;
+    // The saves of mods that bring their own (mods.h: userdata-mods); backed up with user_data.
+    std::filesystem::path mod_user_data;
   };
 
   explicit Updater(Config config);

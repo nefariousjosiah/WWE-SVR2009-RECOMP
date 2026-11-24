@@ -4,14 +4,14 @@ The Xbox 360 version of **WWE SmackDown vs. Raw 2009**, recompiled to run native
 and the Steam Deck: no emulator, **60 fps**, up to **4K**.
 
 **The goal is simple: bring the game back so people can play it again, natively on PC at 60 fps.**
-It's the same game you remember, with no mods, roster changes or reworked gameplay: only what it needs
-to run well on today's hardware.
+Out of the box it's the same game you remember, with no roster changes or reworked gameplay: only
+what it needs to run well on today's hardware. Mods are up to you ([Mods](#mods)).
 
 > **You need your own copy of the game.** It runs from a disc image (`.iso`) of your own SvR 2009
 > disc. None of the disc's files are in this project or its downloads, and it does not condone
 > piracy: please buy the game.
 >
-> **Version 1.0, still updated.** Run into a problem?
+> **Version 3.0, still updated.** Run into a problem?
 > [Open an issue](https://github.com/nefariousjosiah/WWE-SVR2009-RECOMP/issues) with `game.log` from
 > the game's folder, your graphics card and a screenshot.
 
@@ -43,6 +43,8 @@ to run well on today's hardware.
 - **Play in your language:** English, Español, Français, Deutsch or Italiano.
 - **Your own entrance music** ([User Playlist](#your-own-entrance-music-user-playlist)) and
   **your own DLC superstars** ([DLC](#dlc-optional)).
+- **Mods,** such as yumboy11's **SVR09+** ([Mods](#mods)): extract them into the `mods` folder and
+  switch them on or off in the game. A mod with its own save never touches yours.
 - **Updates from inside the game,** only when you choose to; your saves are kept and backed up.
 - **Controllers:** Xbox, PlayStation, Switch Pro and the Steam Deck's own.
 
@@ -136,8 +138,9 @@ The Windows release runs through Proton, Steam's compatibility layer: 720p at 60
 ## Updating
 
 Open the settings menu, go to **Update** and press **A** to see what's new, **A** again to install,
-then **Restart now**. Your `userdata` (saves, created superstars, installed DLC), settings, `dlc` and
-`music` folders and disc image are kept, and your saves are also copied to `save_backups` first; if
+then **Restart now**. Your `userdata` (saves, created superstars, installed DLC), settings, `dlc`,
+`music`, `mods` and `userdata-mods` folders and disc image are kept, and your saves (the mods' own
+saves too) are also copied to `save_backups` first; if
 anything goes wrong, the version you had is put back. **Check for updates: Off** keeps the game
 offline (the check only asks GitHub for the latest release). Coming from v0.4 or older? Download the
 new zip once by hand.
@@ -185,6 +188,126 @@ SVR2009-NATIVE\
   starting with `Music:`.
 
 </details>
+
+## Mods
+
+Mods swap some of the game's files for their own: superstars, attires, arenas, menus. Extract them
+into the `mods` folder next to `svr2009.exe` and they're in the game, and you switch each one on or
+off from inside the game. Your disc image is never changed, and a mod that comes with its own save
+plays on saves of its own, so your progress is never touched.
+
+<p align="center">
+  <img src="docs/mods/rumble-divas.jpg" width="49%" alt="SVR09+: Divas in the Royal Rumble line-up">
+  <img src="docs/mods/maria-vs-kane-match.jpg" width="49%" alt="SVR09+: Maria against Kane, a Diva in a match with a superstar">
+  <img src="docs/mods/maria-vs-kane-select.jpg" width="49%" alt="SVR09+: picking Maria against Kane">
+  <img src="docs/mods/rumble-entrance.jpg" width="49%" alt="SVR09+: Kane's entrance in the Royal Rumble">
+</p>
+
+### SVR09+ by yumboy11, step by step
+
+[SVR09+](https://smacktalks.org/forums/topic/79023-smackdown-vs-raw-2009-mod-xbox-360-version-11-released/)
+adds the Godfather (cut DLC), the PS3-only attires, a second playable Hornswoggle and the NPCs, puts
+Divas in every match type and the Royal Rumble, and lets anyone hold any title. **Version 1.1**
+works here, and you skip the Xbox 360 part of its guide: no xdelta patching, no resigning the save,
+no installing the DLC, no unlocking licences. The port does those itself.
+
+**Windows**
+
+1. Update the game to **v3.0 or newer**: **F1** > **Update**, or download the latest zip.
+2. Download **SVR09+ 1.1** (`SVR09+_1.1_yumboy11.7z`) from yumboy11's thread on SmackTalks (link
+   above).
+3. Open the **`mods`** folder next to `svr2009.exe` (in the game: **F5** > **Open mods folder**).
+4. **Extract the download into `mods`.** With [7-Zip](https://www.7-zip.org): copy the `.7z` into
+   `mods`, right-click it > *7-Zip* > *Extract Here*. On Windows 11 you can also right-click it >
+   *Extract All...* and choose the `mods` folder. You now have a folder called
+   `SVR09+_1.1_yumboy11`. Delete the `.7z` from `mods` afterwards.
+5. **Extract `root.7z` too.** Open the new folder: inside is `root.7z`, the mod's game files.
+   Right-click it > *7-Zip* > *Extract Here* (or *Extract All...*), so `pac`, `movies` and
+   `plist360.arc` appear in that same folder. The mod's own guide has this step as well.
+6. **Start the game.** The corner says **1 mod on**: you're playing SVR09+. On its first start the
+   game installs the mod's DLC and copies its save in, once, by itself.
+
+When it's right, it looks like this:
+
+```
+SVR2009-NATIVE\
+  svr2009.exe
+  userdata\                  your own saves (never touched by the mod)
+  userdata-mods\             made by the game: saves of mods that bring their own
+  mods\
+    SVR09+_1.1_yumboy11\
+      Content\               the mod's save and DLC (installed by the game itself)
+      pac\                   from root.7z
+      movies\                from root.7z
+      plist360.arc           from root.7z
+      plist360_4x3.arc       from root.7z
+      Patch.xdelta           built into the port: nothing to do with it
+      root.7z
+      READ_ME_Install Guide.txt
+```
+
+**Steam Deck / Linux**
+
+1. Update the game to v3.0 or newer, then switch to **Desktop Mode**.
+2. Download `SVR09+_1.1_yumboy11.7z` and copy it into the game's `mods` folder (for example
+   `/home/deck/Games/SVR2009-NATIVE/mods`) with the file manager (Dolphin).
+3. Right-click it > *Extract* > *Extract archive here*, then delete the `.7z`.
+4. Open the new `SVR09+_1.1_yumboy11` folder, right-click `root.7z` > *Extract* > *Extract archive
+   here*.
+5. Back in **Game Mode**, start the game as usual.
+
+### Playing with or without a mod
+
+- **F5**, or **Mods** at the top of the settings menu (**F1**, **Back + Start**, **Share + Options**
+  on PlayStation, **View + Menu** on the Deck) opens the Mods page: every mod with **On** or
+  **Off**. Press **A** or **left/right** to switch one, then **Restart now**: the game starts again
+  with the change.
+- **To play the original game,** switch the mod **Off** and restart. The roster, the rules and your
+  own saves are exactly as they were. Switch it back **On** any time: your modded progress is waiting.
+- A mod you add is **On** from the next start. Select it on the Mods page to see what it changes
+  (Superstar, Arena, Menu...) and how many of the game's files.
+
+### How your saves are protected
+
+- **A mod gets saves of its own.** A mod that comes with a save or DLC, like SVR09+, plays from its
+  own folder, `userdata-mods\<mod name>`, next to your `userdata`. The first time it starts, the
+  game installs the mod's DLC there and copies the mod's save in, once. Your own saves, created
+  superstars and DLC in `userdata` are not opened, changed or replaced while the mod is on.
+- **Switching back is safe.** With the mod **Off**, the game uses `userdata` again, just as you left
+  it. Your progress with the mod stays in `userdata-mods` for the next time you switch it on.
+- **Your disc image is never changed.** While a mod is on, the game reads the mod's files instead of
+  the disc's; nothing is written over your `.iso`.
+- **Updates leave all of it alone.** The updater never touches `mods`, `userdata` or
+  `userdata-mods`, and before it installs anything it backs up your saves **and** the mods' saves
+  to `save_backups`.
+- **Removing a mod:** switch it off, or delete its folder from `mods`. Its saves stay in
+  `userdata-mods` until you delete them yourself.
+
+<details>
+<summary><b>Other mods, and how mods work here</b></summary>
+
+- **Most file mods for the Xbox 360 version work:** extract each into a folder of its own in
+  `mods`. Its files replace the game's files with the same path (`pac\ch\ch12.pac`), or with the
+  same name when the disc has only one file of that name. Loose `.pac` members (`0014.pac`) are put
+  into the right `.pac` by themselves, and the game's `.arc` tables are rebuilt to match.
+- **Several mods at once:** they load in alphabetical order; when two replace the same file, the
+  later one wins (the Mods page says so). Only one mod's save and DLC are used at a time.
+- **Patches of the game's program** (`default.xex`, usually an `.xdelta` file) can't apply, because
+  the program is recompiled into `svr2009.exe`; the Mods page says when a mod has one, and the rest
+  of the mod still works. SVR09+ 1.1's program changes are built into the port.
+- **Files that look made for a different SmackDown game** (arenas, `.pac` members) are left out,
+  since they would crash the game, and the Mods page says so.
+- **Loose files** straight in `mods` aren't used: a mod needs a folder of its own.
+- The game makes a hidden `mods\.cache` folder for the tables it rebuilds; leave it be.
+
+</details>
+
+| What you see | What to do |
+|---|---|
+| **Can't use**: "it's still packed" | The `.7z` or `.zip` is in `mods` as downloaded: extract it there, then delete the archive. |
+| **Can't use**: "its root.7z isn't extracted yet" | Open the mod's folder and extract `root.7z` right there (step 5 above). |
+| The mod isn't on the Mods page | It needs a folder of its own inside `mods`; loose files aren't used. |
+| Nothing changed in the game | Check the mod is **On** and that you restarted. `game.log` lists what each mod replaced, on lines starting with `Mods:`. |
 
 ## Known issues
 

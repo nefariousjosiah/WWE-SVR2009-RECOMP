@@ -100,3 +100,24 @@ jump_address_on_true = 0x8255EFB8
 name = "SvrUnlockAllOn"
 address = 0x8255EFE8
 jump_address_on_true = 0x8255F010
+
+# SVR09+ (yumboy11's mod) support (src/svr09plus.cpp): its default.xex changes as hooks. Two calls
+# of the superstar's gender (sub_82558A08) answer 0 (jump past the bl, r3 = 0).
+[[midasm_hook]]
+name = "SvrSvr09PlusGenderHook"
+address = 0x824AFE88
+registers = ["r3"]
+jump_address_on_true = 0x824AFE8C
+
+[[midasm_hook]]
+name = "SvrSvr09PlusGenderHook"
+address = 0x824B2658
+registers = ["r3"]
+jump_address_on_true = 0x824B265C
+
+# May this superstar enter this match type (sub_8255F710): yes (returns r3 = 1).
+[[midasm_hook]]
+name = "SvrSvr09PlusMatchHook"
+address = 0x8255F710
+registers = ["r3"]
+return_on_true = true

@@ -85,6 +85,28 @@ index 8426798..93397ed 100644
  };
  
  }  // namespace rex::audio
+diff --git a/include/rex/filesystem/device.h b/include/rex/filesystem/device.h
+index 8edc796..2961cf5 100644
+--- a/include/rex/filesystem/device.h
++++ b/include/rex/filesystem/device.h
+@@ -49,4 +49,17 @@ class Device {
+   std::string mount_path_;
+ };
+ 
++// Wraps the game data device (game:, d:) before it is initialized and mounted, so a game can put a
++// layer in front of it (mods replacing the disc's files). Unset keeps the device as it is.
++using GameDeviceWrapper = std::unique_ptr<Device> (*)(std::unique_ptr<Device> device);
++void SetGameDeviceWrapper(GameDeviceWrapper wrapper);
++GameDeviceWrapper GetGameDeviceWrapper();
++
++// Opens another entry in place of the one a file open found, or for a file that isn't there
++// (`entry` null, `parent` its folder, `name` the file's); returns `entry` to keep it. Files are
++// opened through their folder's entry, so a device's ResolvePath doesn't see them.
++using OpenRedirect = Entry* (*)(Entry* entry, Entry* parent, std::string_view name);
++void SetOpenRedirect(OpenRedirect redirect);
++OpenRedirect GetOpenRedirect();
++
+ }  // namespace rex::filesystem
 diff --git a/include/rex/graphics/d3d12/command_processor.h b/include/rex/graphics/d3d12/command_processor.h
 index 96d362b..26f735b 100644
 --- a/include/rex/graphics/d3d12/command_processor.h
@@ -1022,6 +1044,39 @@ index 1645848..618f314 100644
    } else if (!config.app_name.empty()) {
      auto log_dir = config.log_dir.empty() ? std::filesystem::current_path() / "logs"
                                            : std::filesystem::path(config.log_dir);
+diff --git a/src/filesystem/device.cpp b/src/filesystem/device.cpp
+index 98ed5eb..034cdd2 100644
+--- a/src/filesystem/device.cpp
++++ b/src/filesystem/device.cpp
+@@ -17,4 +17,14 @@ namespace rex::filesystem {
+ Device::Device(const std::string_view mount_path) : mount_path_(mount_path) {}
+ Device::~Device() = default;
+ 
++namespace {
++GameDeviceWrapper g_game_device_wrapper = nullptr;
++OpenRedirect g_open_redirect = nullptr;
++}  // namespace
++
++void SetGameDeviceWrapper(GameDeviceWrapper wrapper) { g_game_device_wrapper = wrapper; }
++GameDeviceWrapper GetGameDeviceWrapper() { return g_game_device_wrapper; }
++void SetOpenRedirect(OpenRedirect redirect) { g_open_redirect = redirect; }
++OpenRedirect GetOpenRedirect() { return g_open_redirect; }
++
+ }  // namespace rex::filesystem
+diff --git a/src/filesystem/virtual_file_system.cpp b/src/filesystem/virtual_file_system.cpp
+index a1b4dad..afac5e9 100644
+--- a/src/filesystem/virtual_file_system.cpp
++++ b/src/filesystem/virtual_file_system.cpp
+@@ -247,6 +247,9 @@ X_STATUS VirtualFileSystem::OpenFile(Entry* root_entry, const std::string_view p
+     }
+   }
+ 
++  if (auto redirect = GetOpenRedirect())
++    entry = redirect(entry, parent_entry, rex::string::utf8_find_name_from_guest_path(path));
++
+   // Check if exists (if we need it to), or that it doesn't (if it shouldn't).
+   switch (creation_disposition) {
+     case FileDisposition::kOpen:
 diff --git a/src/graphics/CMakeLists.txt b/src/graphics/CMakeLists.txt
 index 0d8f8af..54d5f30 100644
 --- a/src/graphics/CMakeLists.txt
@@ -2305,7 +2360,7 @@ index 697399c..79b6b07 100644
    }
    for (const auto& notify_listener : snapshot) {
 diff --git a/src/system/runtime.cpp b/src/system/runtime.cpp
-index c10694c..ffdaddc 100644
+index c10694c..a1a57c0 100644
 --- a/src/system/runtime.cpp
 +++ b/src/system/runtime.cpp
 @@ -11,6 +11,7 @@
@@ -2316,7 +2371,7 @@ index c10694c..ffdaddc 100644
  #include <rex/filesystem/devices/host_path_device.h>
  #include <rex/filesystem/devices/null_device.h>
  #include <rex/filesystem/vfs.h>
-@@ -303,12 +304,19 @@ bool Runtime::SetupVfs() {
+@@ -303,12 +304,21 @@ bool Runtime::SetupVfs() {
      return false;
    }
  
@@ -2333,6 +2388,8 @@ index c10694c..ffdaddc 100644
 +    device = std::make_unique<rex::filesystem::HostPathDevice>(
 +        mount_path, abs_game_root, !REXCVAR_GET(allow_game_relative_writes));
 +  }
++  if (auto wrap = rex::filesystem::GetGameDeviceWrapper())
++    device = wrap(std::move(device));
    if (!device->Initialize()) {
 -    REXSYS_ERROR("Runtime::SetupVfs: Failed to initialize host path device");
 +    REXSYS_ERROR("Runtime::SetupVfs: Failed to initialize the game data device for {}",

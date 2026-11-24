@@ -162,6 +162,8 @@ class Svr2009App : public rex::ReXApp {
     if (REXCVAR_GET(svr_high_priority))
       SvrSetHighPriority(true);
     // Add-on packages in <exe>/dlc are installed once (dlc_install.h).
+    // A mod's own DLC and save (mods.h) first: its DLC pack can share a name with one of these.
+    svr::ModsInstallContent(runtime()->kernel_state(), runtime()->user_data_root());
     svr::InstallDlcPackages(runtime()->kernel_state(), rex::filesystem::GetExecutableFolder() / "dlc",
                            runtime()->user_data_root());
     // The game gets no input while the settings menu is open (or while the mouse is over an
@@ -193,7 +195,10 @@ class Svr2009App : public rex::ReXApp {
     update.settings_file = "svr2009.toml";
     update.current_version = SVR_VERSION;
     update.game_dir = rex::filesystem::GetExecutableFolder();
-    update.user_data = runtime()->user_data_root();
+    // The player's own saves, also while a mod plays with saves of its own (OnConfigurePaths).
+    update.user_data = player_user_data_.empty() ? runtime()->user_data_root() : player_user_data_;
+    update.mod_user_data = update.user_data.parent_path() /
+                           (update.user_data.filename().string() + "-mods");
     updater_ = std::make_unique<svr::Updater>(std::move(update));
     if (REXCVAR_GET(svr_check_updates))
       updater_->StartCheck();
@@ -219,6 +224,7 @@ class Svr2009App : public rex::ReXApp {
 #endif
     rex::ui::UnregisterBind("bind_fps_counter");
     rex::ui::UnregisterBind("bind_svr_settings");
+    rex::ui::UnregisterBind("bind_svr_mods");
     settings_menu_.reset();
     updater_.reset();  // stops a download in progress
     fps_counter_.reset();
@@ -310,6 +316,10 @@ class Svr2009App : public rex::ReXApp {
     settings_menu_ = std::make_unique<SettingsMenuDialog>(
         drawer, "WWE SmackDown vs. Raw 2009   v" SVR_VERSION,
         rex::filesystem::GetExecutableFolder() / "svr2009.toml", std::move(hooks));
+    rex::ui::RegisterBind("bind_svr_mods", "F5", "Open the Mods page", [this] {
+      if (settings_menu_)
+        settings_menu_->ToggleMods();
+    });
     rex::ui::RegisterBind("bind_svr_settings", "F1", "Open the settings menu", [this] {
       if (settings_menu_)
         settings_menu_->Toggle();
@@ -339,6 +349,8 @@ class Svr2009App : public rex::ReXApp {
   // runs with no arguments, also on Steam Deck through Proton. Settings: svr2009.toml there too.
   void OnConfigurePaths(rex::PathConfig& paths) override {
     const auto exe_dir = rex::filesystem::GetExecutableFolder();
+    // Mods (mods.h): found now, put in front of the game's files when those are mounted.
+    svr::ModsInit(exe_dir / "mods", paths.config_path);
     if (paths.game_data_root.empty())
       paths.game_data_root = svr::LocateGameData(exe_dir);
     if (REXCVAR_GET(user_data_root).empty()) {
@@ -350,6 +362,19 @@ class Svr2009App : public rex::ReXApp {
           paths.cache_root = paths.user_data_root / "cache";
       }
     }
+    // A mod with a save or DLC of its own plays with saves of its own, next to the player's:
+    // userdata-mods\<mod>. The player's own saves stay as they are.
+    player_user_data_ = paths.user_data_root;
+    if (const auto mod_data = svr::ModsUserData(paths.user_data_root); !mod_data.empty()) {
+      std::error_code ec;
+      std::filesystem::create_directories(mod_data, ec);
+      if (!ec) {
+        REXLOG_INFO("Mods: saves of the mod's own in {}", mod_data.string());
+        paths.user_data_root = mod_data;
+        if (REXCVAR_GET(cache_root).empty())
+          paths.cache_root = mod_data / "cache";
+      }
+    }
   }
 
  private:
@@ -358,6 +383,7 @@ class Svr2009App : public rex::ReXApp {
   std::unique_ptr<FpsCounterDialog> fps_counter_;
   std::unique_ptr<SettingsMenuDialog> settings_menu_;
   std::unique_ptr<svr::Updater> updater_;
+  std::filesystem::path player_user_data_;  // before a mod's own saves replace it
 #if defined(SVR_NATIVE_RENDERER)
   bd::gpu::ImGuiOverlayDrawer* overlay_drawer_ = nullptr;  // owned by the ImGui drawer
   std::atomic<bool> overlay_capture_pending_{false};

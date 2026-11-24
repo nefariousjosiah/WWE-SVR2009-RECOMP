@@ -8,6 +8,7 @@
 #include <cstring>
 #include <ctime>
 #include <fstream>
+#include <iterator>
 #include <system_error>
 
 #include <sstream>
@@ -500,43 +501,56 @@ bool Updater::BackUpSaves(std::string& error) {
     return false;
   }
   uint64_t files = 0, bytes = 0;
-  auto it = fs::recursive_directory_iterator(src, fs::directory_options::skip_permission_denied, ec);
-  if (ec) {
-    error = "couldn't read the userdata folder";
-    return false;
-  }
-  for (; it != fs::recursive_directory_iterator(); it.increment(ec)) {
+  // Copies a saves folder into `to`. Not copied: shader caches (rebuilt by themselves) and
+  // installed DLC packages (content type 00000002: reinstalled from the dlc folder or the mod, and
+  // they can be gigabytes). Updates don't touch either; saves and profiles are everything else.
+  auto copy_saves = [&](const fs::path& from, const fs::path& to, const std::string& what) {
+    auto it =
+        fs::recursive_directory_iterator(from, fs::directory_options::skip_permission_denied, ec);
     if (ec) {
-      error = "couldn't read the userdata folder";
+      error = "couldn't read the " + what + " folder";
       return false;
     }
-    const fs::path rel = it->path().lexically_relative(src);
-    // Not copied: the shader cache (rebuilt by itself) and installed DLC packages (content type
-    // 00000002: reinstalled from the dlc folder, and they can be gigabytes). Updates don't touch
-    // either; saves and profiles are everything else.
-    const bool skip = !rel.empty() && (*rel.begin() == "cache" || rel.filename() == "00000002");
-    if (skip) {
-      if (it->is_directory(ec))
-        it.disable_recursion_pending();
-      continue;
+    for (; it != fs::recursive_directory_iterator(); it.increment(ec)) {
+      if (ec) {
+        error = "couldn't read the " + what + " folder";
+        return false;
+      }
+      const fs::path rel = it->path().lexically_relative(from);
+      // The shader cache is userdata\cache, or userdata-mods\<mod>\cache.
+      const bool cache = rel.filename() == "cache" &&
+                         std::distance(rel.begin(), rel.end()) <= (to == dst ? 1 : 2);
+      const bool skip = cache || rel.filename() == "00000002";
+      if (skip) {
+        if (it->is_directory(ec))
+          it.disable_recursion_pending();
+        continue;
+      }
+      if (it->is_directory(ec)) {
+        fs::create_directories(to / rel, ec);
+        continue;
+      }
+      if (!it->is_regular_file(ec))
+        continue;
+      fs::create_directories((to / rel).parent_path(), ec);
+      fs::copy_file(it->path(), to / rel, fs::copy_options::overwrite_existing, ec);
+      std::error_code e1, e2;
+      const uintmax_t a = fs::file_size(it->path(), e1), b = fs::file_size(to / rel, e2);
+      if (ec || e1 || e2 || a != b) {
+        error = "copying " + U8(rel) + " failed";
+        return false;
+      }
+      ++files;
+      bytes += a;
     }
-    if (it->is_directory(ec)) {
-      fs::create_directories(dst / rel, ec);
-      continue;
-    }
-    if (!it->is_regular_file(ec))
-      continue;
-    fs::create_directories((dst / rel).parent_path(), ec);
-    fs::copy_file(it->path(), dst / rel, fs::copy_options::overwrite_existing, ec);
-    std::error_code e1, e2;
-    const uintmax_t a = fs::file_size(it->path(), e1), b = fs::file_size(dst / rel, e2);
-    if (ec || e1 || e2 || a != b) {
-      error = "copying " + U8(rel) + " failed";
-      return false;
-    }
-    ++files;
-    bytes += a;
-  }
+    return true;
+  };
+  if (!copy_saves(src, dst, "userdata"))
+    return false;
+  // The saves of mods with their own (userdata-mods\<mod>), in the backup's userdata-mods folder.
+  if (!config_.mod_user_data.empty() && fs::is_directory(config_.mod_user_data, ec) &&
+      !copy_saves(config_.mod_user_data, dst / "userdata-mods", "userdata-mods"))
+    return false;
   {
     std::lock_guard lock(mutex_);
     backup_ = U8(rel_dir);
@@ -704,11 +718,12 @@ bool Updater::Swap(std::string& error) {
   const fs::path staged_dir = config_.game_dir / "update" / "files";
   for (const fs::path& rel : staged_) {
     const std::string top = U8(*rel.begin());
-    // The player's data stays as it is (saves, backups, DLC packages, their music, the update
-    // itself).
-    if (top == "userdata" || top == "save_backups" || top == "update" || top == "dlc" ||
+    // The player's data stays as it is (saves, backups, DLC packages, their music, their mods,
+    // the update itself).
+    if (top == "userdata" || top == "userdata-mods" || top == "mods" || top == "save_backups" ||
+        top == "update" || top == "dlc" ||
         top == "music") {
-      if (top == "dlc" || top == "music")
+      if (top == "dlc" || top == "music" || top == "mods")
         fs::create_directories(config_.game_dir / top, ec);
       continue;
     }
@@ -792,7 +807,8 @@ void Updater::CleanUp(const fs::path& game_dir) {
   for (; !ec && it != fs::recursive_directory_iterator(); it.increment(ec)) {
     const std::string name = U8(it->path().filename());
     if (it->is_directory(ec)) {
-      if (name == "userdata" || name == "save_backups" || name == "dlc" || name == "music")
+      if (name == "userdata" || name == "userdata-mods" || name == "mods" ||
+          name == "save_backups" || name == "dlc" || name == "music")
         it.disable_recursion_pending();
       continue;
     }

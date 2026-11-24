@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include "mods.h"
 #include "updater.h"
 
 #if defined(_WIN32)
@@ -68,6 +69,16 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
   }
 
   void Toggle() { open_ ? Close() : Open(); }
+  // F5: straight to the Mods page, or closes it.
+  void ToggleMods() {
+    if (open_ && mods_page_) {
+      Close();
+      return;
+    }
+    if (!open_)
+      Open();
+    OpenModsPage();
+  }
   // Game input stays off while the menu is open, and until the buttons used to close it are released.
   bool BlocksGameInput() const { return open_ || hold_; }
 
@@ -84,6 +95,7 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
       last_ = pad;
       if (!open_) {
         DrawUpdateNotice(io);
+        DrawModsNotice(io);
         return;
       }
     }
@@ -95,6 +107,7 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
 
  private:
   enum RowId {
+    kMods,
     kResolution,
     kGraphicsApi,
     kDisplay,
@@ -127,6 +140,10 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
 
   const std::vector<Row>& Rows() const {
     static const std::vector<Row> rows = {
+        {"Mods", {},
+         "Mods replace the game's own files. Extract a mod into the mods folder next to "
+         "svr2009.exe, as a folder of its own. Press A (or F5 at any time) to see your mods and "
+         "switch them on or off."},
         {"Resolution",
          {"Auto (recommended)", "480p (low-end PCs)", "720p (original)", "1080p", "1440p", "4K",
           "8K"},
@@ -186,6 +203,7 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
   void Open() {
     open_ = true;
     selected_ = 0;
+    mods_page_ = false;
     values_[kResolution] = ResolutionRow(std::atoi(Get("svr_render_scale").c_str()));
     std::string api = Get("svr_graphics_api");
     std::erase(api, '"');
@@ -576,7 +594,7 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
   }
 
   void Change(int delta) {
-    if (selected_ >= kUpdate)
+    if (selected_ >= kUpdate || selected_ == kMods)
       return;
     confirm_restart_ = false;
     const int count = int(Rows()[selected_].labels.size());
@@ -634,6 +652,10 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
   }
 
   void HandleInput(const Pad& pad) {
+    if (mods_page_) {
+      ModsInput(pad);
+      return;
+    }
     const bool up = Fire(pad.up, last_.up, rep_[0]) || ImGui::IsKeyPressed(ImGuiKey_UpArrow);
     const bool down = Fire(pad.down, last_.down, rep_[1]) || ImGui::IsKeyPressed(ImGuiKey_DownArrow);
     const bool left = Fire(pad.left, last_.left, rep_[2]) || ImGui::IsKeyPressed(ImGuiKey_LeftArrow);
@@ -661,6 +683,8 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
         UpdateAction();
       else if (selected_ == kLanguage)
         LanguageAction();
+      else if (selected_ == kMods)
+        OpenModsPage();
       else
         Change(+1);
     }
@@ -714,6 +738,10 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
   }
 
   void Draw(ImGuiIO& io) {
+    if (mods_page_) {
+      DrawModsPage(io);
+      return;
+    }
     const float s = std::max(0.6f, io.DisplaySize.y / 1080.0f);
     const ImU32 accent = IM_COL32(214, 38, 38, 255);
     const ImU32 text = IM_COL32(236, 238, 244, 255);
@@ -769,6 +797,8 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
             Close();
           else if (i == kUpdate)
             UpdateAction();
+          else if (i == kMods)
+            OpenModsPage();
           else
             Change(io.MousePos.x < p0.x + value_x + (inner - value_x) * 0.5f ? -1 : +1);
         } else if (hovered && (io.MouseDelta.x != 0 || io.MouseDelta.y != 0)) {
@@ -791,12 +821,13 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
           continue;
         }
         dl->AddText(ImVec2(p0.x + 20 * s, cy - fh * 0.5f), sel ? text : dim, row.name);
-        if (i == kUpdate) {  // a button, not a choice: no arrows
-          const std::string value = UpdateValue();
+        if (i == kUpdate || i == kMods) {  // a button, not a choice: no arrows
+          const std::string value = i == kMods ? ModsValue() : UpdateValue();
           const float vw = ImGui::CalcTextSize(value.c_str()).x;
           const float mid = p0.x + value_x + (inner - value_x) * 0.5f;
-          const bool ready = Updater() && (Updater()->state() == svr::Updater::State::kAvailable ||
-                                           Updater()->state() == svr::Updater::State::kInstalled);
+          const bool ready = i == kMods ? svr::ModsPending()
+                                        : Updater() && (Updater()->state() == svr::Updater::State::kAvailable ||
+                                                        Updater()->state() == svr::Updater::State::kInstalled);
           dl->AddText(ImVec2(mid - vw * 0.5f, cy - fh * 0.5f),
                       ready ? accent : (sel ? IM_COL32(255, 255, 255, 255) : text), value.c_str());
           continue;
@@ -851,6 +882,298 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
     ImGui::PopStyleVar(3);
   }
 
+  // The Mods page (mods.h): every mod with an On/Off switch, then Open mods folder, Restart now
+  // (after a change) and Back. Switching applies when the game starts.
+  static constexpr int kModsOpenFolder = -1, kModsRestart = -2, kModsBack = -3;
+  std::vector<int> ModsItems() const {
+    std::vector<int> items;
+    for (int i = 0; i < int(mods_.size()); ++i)
+      items.push_back(i);
+    if (svr::CanOpenModsFolder())
+      items.push_back(kModsOpenFolder);
+    if (svr::ModsPending())
+      items.push_back(kModsRestart);
+    items.push_back(kModsBack);
+    return items;
+  }
+  void OpenModsPage() {
+    mods_ = svr::Mods();
+    mods_page_ = true;
+    mods_sel_ = 0;
+    mods_restart_failed_ = false;
+    // With a restart to do (a new mod is ready, or one was switched), it opens on Restart now:
+    // the mod's own row switches it, and a player pressing A there would switch it off instead.
+    const std::vector<int> items = ModsItems();
+    if (const auto it = std::find(items.begin(), items.end(), kModsRestart); it != items.end())
+      mods_sel_ = int(it - items.begin());
+  }
+  static bool ModOn(const std::string& name) {
+    const std::vector<std::string> off = svr::ModsOff();
+    return !std::binary_search(off.begin(), off.end(), name);
+  }
+  void ToggleMod(const std::string& name) {
+    std::vector<std::string> off = svr::ModsOff();
+    if (auto it = std::lower_bound(off.begin(), off.end(), name); it != off.end() && *it == name)
+      off.erase(it);
+    else
+      off.insert(it, name);
+    // A string setting: quoted in the toml file.
+    const std::string value = svr::JoinModsOff(off);
+    rex::cvar::SetFlagByName("svr_mods_off", value);
+    Save("svr_mods_off", "\"" + value + "\"");
+  }
+  void ModsActivate(int item) {
+    if (item >= 0) {
+      ToggleMod(mods_[item].name);
+    } else if (item == kModsOpenFolder) {
+      svr::OpenModsFolder();
+    } else if (item == kModsRestart) {
+      svr::Updater* u = Updater();
+      if (u && u->Restart()) {
+        if (hooks_.quit)
+          hooks_.quit();
+      } else {
+        mods_restart_failed_ = true;
+      }
+    } else {
+      mods_page_ = false;
+    }
+  }
+  void ModsInput(const Pad& pad) {
+    const bool up = Fire(pad.up, last_.up, rep_[0]) || ImGui::IsKeyPressed(ImGuiKey_UpArrow);
+    const bool down = Fire(pad.down, last_.down, rep_[1]) || ImGui::IsKeyPressed(ImGuiKey_DownArrow);
+    const bool left = Fire(pad.left, last_.left, rep_[2]) || ImGui::IsKeyPressed(ImGuiKey_LeftArrow);
+    const bool right = Fire(pad.right, last_.right, rep_[3]) || ImGui::IsKeyPressed(ImGuiKey_RightArrow);
+    const bool accept = (pad.a && !last_.a) || ImGui::IsKeyPressed(ImGuiKey_Enter, false) ||
+                        ImGui::IsKeyPressed(ImGuiKey_Space, false);
+    const bool back = (pad.b && !last_.b) || (pad.combo && !last_.combo) ||
+                      ImGui::IsKeyPressed(ImGuiKey_Escape, false);
+    const std::vector<int> items = ModsItems();
+    const int n = int(items.size());
+    mods_sel_ = std::clamp(mods_sel_, 0, n - 1);
+    if (up)
+      mods_sel_ = (mods_sel_ + n - 1) % n;
+    if (down)
+      mods_sel_ = (mods_sel_ + 1) % n;
+    const int item = items[mods_sel_];
+    if ((left || right) && item >= 0)
+      ToggleMod(mods_[item].name);
+    if (accept)
+      ModsActivate(item);
+    if (back)
+      mods_page_ = false;
+  }
+  // Bottom right, at startup, for a few seconds: the mods in use and where to see them.
+  void DrawModsNotice(ImGuiIO& io) {
+    static const auto start = Clock::now();
+    if (Clock::now() - start > std::chrono::seconds(8))
+      return;
+    const std::vector<svr::ModInfo> mods = svr::Mods();
+    int on = 0, unusable = 0;
+    for (const svr::ModInfo& m : mods) {
+      on += m.loaded ? 1 : 0;
+      unusable += !m.loaded && !m.error.empty() ? 1 : 0;
+    }
+    if (!on && !unusable)
+      return;
+    const std::string line1 =
+        std::to_string(on) + (on == 1 ? " mod on" : " mods on") +
+        (unusable ? ", " + std::to_string(unusable) + " can't be used" : std::string());
+    const std::string line2 = "F5, or Mods in Settings (F1, or Back + Start)";
+    const float s = std::max(0.6f, io.DisplaySize.y / 1080.0f);
+    ImFont* font = g_menu_font ? g_menu_font : ImGui::GetFont();
+    const float size1 = 18 * s, size2 = 13 * s, pad = 16 * s;
+    const ImVec2 t1 = font->CalcTextSizeA(size1, FLT_MAX, 0.0f, line1.c_str());
+    const ImVec2 t2 = font->CalcTextSizeA(size2, FLT_MAX, 0.0f, line2.c_str());
+    const float w = std::max(t1.x, t2.x) + pad * 2, h = t1.y + t2.y + pad * 2 + 6 * s;
+    const ImVec2 p1(io.DisplaySize.x - 24 * s, io.DisplaySize.y - 24 * s);
+    const ImVec2 p0(p1.x - w, p1.y - h);
+    ImDrawList* dl = ImGui::GetForegroundDrawList();
+    dl->AddRectFilled(p0, p1, IM_COL32(18, 21, 30, 235), 10 * s);
+    dl->AddRectFilled(p0, ImVec2(p0.x + 5 * s, p1.y), IM_COL32(214, 38, 38, 255), 3 * s);
+    dl->AddText(font, size1, ImVec2(p0.x + pad, p0.y + pad), IM_COL32(236, 238, 244, 255),
+                line1.c_str());
+    dl->AddText(font, size2, ImVec2(p0.x + pad, p0.y + pad + t1.y + 6 * s),
+                IM_COL32(178, 184, 198, 255), line2.c_str());
+  }
+  std::string ModsValue() const {
+    const std::vector<svr::ModInfo> mods = svr::Mods();
+    if (svr::ModsPending())
+      return "Restart to apply";
+    if (mods.empty())
+      return "None yet";
+    int on = 0;
+    for (const svr::ModInfo& m : mods)
+      on += m.loaded ? 1 : 0;
+    return std::to_string(on) + " on, " + std::to_string(mods.size()) + " found";
+  }
+  std::string ModsHint(int item) const {
+    if (item == kModsOpenFolder)
+      return "Opens the mods folder (next to svr2009.exe). Extract each mod into it, as a folder of "
+             "its own, then restart the game.";
+    if (item == kModsRestart)
+      return mods_restart_failed_
+                 ? "The game couldn't restart itself: close it and start it again."
+                 : "Restart the game now to apply your changes. Anything you haven't saved in the "
+                   "game is lost.";
+    if (item == kModsBack)
+      return "Back to the settings.";
+    const svr::ModInfo& m = mods_[item];
+    const bool on = ModOn(m.name);
+    if (!m.error.empty() && on)
+      return "Can't be used: " + m.error + ".";
+    if (on != m.loaded)
+      return on ? "Switched on: restart the game to use it."
+                : "Switched off: restart the game to take it out.";
+    if (!on)
+      return "Switched off.";
+    std::string hint;
+    if (m.replaced == 0)
+      hint = m.unused ? "None of its files match a file in the game: check the mod's instructions."
+                      : "Has no files the game uses.";
+    else
+      hint = m.kinds + ": replaces " + std::to_string(m.replaced) +
+             (m.replaced == 1 ? " game file." : " game files.");
+    if (m.overridden)
+      hint += " " + std::to_string(m.overridden) +
+              " of them are replaced by a mod later in the list instead.";
+    if (m.unused && m.replaced)
+      hint += " " + std::to_string(m.unused) +
+              " of its files match nothing in the game: check the mod's instructions.";
+    if (m.rejected)
+      hint += " " + std::to_string(m.rejected) +
+              " look made for a different game and were left out.";
+    if (m.own_saves)
+      hint += " It plays with saves of its own (with its save and DLC): your own saves and DLC come "
+              "back when you switch it off.";
+    if (m.packages_ignored)
+      hint += " It brings a save or DLC too, but another mod's are in use.";
+    if (m.program == svr::ModInfo::Program::kBuiltIn)
+      hint += " Its changes to the game's program are built into this port.";
+    else if (m.program == svr::ModInfo::Program::kUnsupported)
+      hint += " It also patches the game's program (default.xex), which this port can't use, so "
+              "those changes are missing.";
+    return hint;
+  }
+  void DrawModsPage(ImGuiIO& io) {
+    mods_ = svr::Mods();
+    const float s = std::max(0.6f, io.DisplaySize.y / 1080.0f);
+    const ImU32 accent = IM_COL32(214, 38, 38, 255);
+    const ImU32 text = IM_COL32(236, 238, 244, 255);
+    const ImU32 dim = IM_COL32(150, 156, 172, 255);
+    ImGui::GetBackgroundDrawList()->AddRectFilled(ImVec2(0, 0), io.DisplaySize, IM_COL32(0, 0, 0, 150));
+    ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Always,
+                            ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(900 * s, 0));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 14 * s);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(30 * s, 26 * s));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGui::PushStyleColor(ImGuiCol_WindowBg, IM_COL32(18, 21, 30, 245));
+    ImGui::PushFont(g_menu_font, 16 * s);
+    constexpr ImGuiWindowFlags kFlags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+                                        ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoNav |
+                                        ImGuiWindowFlags_AlwaysAutoResize;
+    if (ImGui::Begin("##svr_mods_page", nullptr, kFlags)) {
+      ImDrawList* dl = ImGui::GetWindowDrawList();
+      ImGui::PushFont(g_menu_font, 30 * s);
+      ImGui::TextColored(ImColor(IM_COL32(255, 255, 255, 255)), "MODS");
+      ImGui::PopFont();
+      ImGui::PushFont(g_menu_font, 13 * s);
+      ImGui::TextColored(ImColor(dim), "%s",
+                         mods_.empty() ? (svr::CanOpenModsFolder()
+                                              ? "No mods yet: extract them into the mods folder "
+                                                "next to svr2009.exe, then restart the game."
+                                              : "No mods yet: in Desktop Mode, extract them into "
+                                                "the mods folder next to svr2009.exe.")
+                                       : "Alphabetical order: when two mods replace the same file, "
+                                         "the later one wins.");
+      ImGui::PopFont();
+      ImGui::Dummy(ImVec2(0, 12 * s));
+
+      const float row_h = 40 * s;
+      const float inner = ImGui::GetContentRegionAvail().x;
+      const float value_x = 560 * s;
+      const std::vector<int> items = ModsItems();
+      const int n = int(items.size());
+      mods_sel_ = std::clamp(mods_sel_, 0, n - 1);
+      constexpr int kVisible = 12;  // rows shown at once; the list scrolls with the selection
+      const int first = std::clamp(mods_sel_ - kVisible / 2, 0, std::max(0, n - kVisible));
+      for (int r = first; r < std::min(n, first + kVisible); ++r) {
+        const int item = items[r];
+        const ImVec2 p0 = ImGui::GetCursorScreenPos();
+        const ImVec2 p1(p0.x + inner, p0.y + row_h);
+        ImGui::PushID(r);
+        ImGui::InvisibleButton("row", ImVec2(inner, row_h));
+        const bool hovered = ImGui::IsItemHovered();
+        ImGui::PopID();
+        if (hovered && (io.MouseDelta.x != 0 || io.MouseDelta.y != 0 ||
+                        ImGui::IsMouseClicked(ImGuiMouseButton_Left)))
+          mods_sel_ = r;
+        if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+          ModsActivate(item);
+        const bool sel = r == mods_sel_;
+        if (sel) {
+          dl->AddRectFilled(p0, p1, IM_COL32(255, 255, 255, 16), 8 * s);
+          dl->AddRectFilled(p0, ImVec2(p0.x + 5 * s, p1.y), accent, 3 * s);
+        }
+        const float cy = p0.y + row_h * 0.5f;
+        const float fh = ImGui::GetFontSize();
+        if (item < 0) {
+          const char* label = item == kModsOpenFolder ? "Open mods folder"
+                              : item == kModsRestart  ? "Restart now"
+                                                      : "Back";
+          const float tw = ImGui::CalcTextSize(label).x;
+          dl->AddText(ImVec2(p0.x + (inner - tw) * 0.5f, cy - fh * 0.5f),
+                      item == kModsRestart ? accent : (sel ? text : dim), label);
+          continue;
+        }
+        const svr::ModInfo& m = mods_[item];
+        std::string name = m.name;
+        const float max_name = value_x - 40 * s;
+        while (name.size() > 4 && ImGui::CalcTextSize(name.c_str()).x > max_name)
+          name = name.substr(0, name.size() - 4) + "...";
+        dl->AddText(ImVec2(p0.x + 20 * s, cy - fh * 0.5f), sel ? text : dim, name.c_str());
+        // What it changes, after the name when there's room.
+        const float name_w = ImGui::CalcTextSize(name.c_str()).x + 16 * s;
+        const float kinds_w = ImGui::CalcTextSize(m.kinds.c_str()).x;
+        if (!m.kinds.empty() && 20 * s + name_w + kinds_w < value_x - 10 * s)
+          dl->AddText(ImVec2(p0.x + 20 * s + name_w, cy - fh * 0.5f), IM_COL32(120, 126, 142, 255),
+                      m.kinds.c_str());
+        const bool on = ModOn(m.name);
+        // A mod switched but not applied yet, or one that can't be used, shows in red.
+        const char* value = on && !m.error.empty()    ? "Can't use"
+                            : on                      ? "On"
+                                                      : "Off";
+        const float vw = ImGui::CalcTextSize(value).x;
+        const float mid = p0.x + value_x + (inner - value_x) * 0.5f;
+        dl->AddText(ImVec2(mid - vw * 0.5f, cy - fh * 0.5f),
+                    on != m.loaded ? accent : (sel ? IM_COL32(255, 255, 255, 255) : text), value);
+        const ImU32 arrow = sel ? accent : IM_COL32(90, 96, 112, 255);
+        const float ax = 9 * s, ay = 8 * s;
+        const float lx = p0.x + value_x + 10 * s, rx = p1.x - 18 * s;
+        dl->AddTriangleFilled(ImVec2(lx, cy), ImVec2(lx + ax, cy - ay), ImVec2(lx + ax, cy + ay), arrow);
+        dl->AddTriangleFilled(ImVec2(rx + ax, cy), ImVec2(rx, cy - ay), ImVec2(rx, cy + ay), arrow);
+      }
+
+      ImGui::Dummy(ImVec2(0, 10 * s));
+      ImGui::PushFont(g_menu_font, 13 * s);
+      ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(178, 184, 198, 255));
+      ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + inner);
+      const float hint_y = ImGui::GetCursorPosY();
+      ImGui::TextWrapped("%s", ModsHint(items[mods_sel_]).c_str());
+      ImGui::SetCursorPosY(std::max(ImGui::GetCursorPosY(), hint_y + 4 * ImGui::GetTextLineHeightWithSpacing()));
+      ImGui::PopTextWrapPos();
+      ImGui::PopStyleColor();
+      ImGui::Dummy(ImVec2(0, 6 * s));
+      ImGui::TextColored(ImColor(dim), "Up/Down choose   A or Left/Right switch   B/Esc back");
+      ImGui::PopFont();
+    }
+    ImGui::End();
+    ImGui::PopFont();
+    ImGui::PopStyleColor();
+    ImGui::PopStyleVar(3);
+  }
+
 #if defined(_WIN32)
   using XInputGetStateFn = DWORD(WINAPI*)(DWORD, XINPUT_STATE*);
   XInputGetStateFn xinput_get_state_ = nullptr;
@@ -861,6 +1184,9 @@ class SettingsMenuDialog : public rex::ui::ImGuiDialog {
   bool open_ = false, hold_ = false;
   bool confirm_update_ = false, restart_failed_ = false, notice_shown_ = false;
   bool confirm_restart_ = false, language_restart_failed_ = false;
+  bool mods_page_ = false, mods_restart_failed_ = false;
+  int mods_sel_ = 0;
+  std::vector<svr::ModInfo> mods_;
   // The language the game started in (the setting is read when the game starts).
   const int start_language_ = std::atoi(rex::cvar::GetFlagByName("user_language").c_str());
   Clock::time_point notice_until_, hold_until_;
