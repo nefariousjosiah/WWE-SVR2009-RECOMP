@@ -221,9 +221,18 @@ no installing the DLC, no unlocking licences. The port does those itself.
    `mods`, right-click it > *7-Zip* > *Extract Here*. On Windows 11 you can also right-click it >
    *Extract All...* and choose the `mods` folder. You now have a folder called
    `SVR09+_1.1_yumboy11`. Delete the `.7z` from `mods` afterwards.
+
+   ![The mods folder: the SVR09+_1.1_yumboy11 folder, and the .cache folder the game makes](docs/mods/explorer-mods-folder.png)
+
+   *The `mods` folder. `.cache` is made by the game on the first start (it's hidden; leave it be).*
 5. **Extract `root.7z` too.** Open the new folder: inside is `root.7z`, the mod's game files.
    Right-click it > *7-Zip* > *Extract Here* (or *Extract All...*), so `pac`, `movies` and
    `plist360.arc` appear in that same folder. The mod's own guide has this step as well.
+
+   ![Inside SVR09+_1.1_yumboy11: Alternate Save Datas, Content, movies, pac, Patch.xdelta, plist360.arc, plist360_4x3.arc, the readme and root.7z](docs/mods/explorer-svr09plus-folder.png)
+
+   *Inside `SVR09+_1.1_yumboy11` when it's ready: `movies`, `pac`, `plist360.arc` and
+   `plist360_4x3.arc` come from `root.7z`.*
 6. **Start the game.** The corner says **1 mod on**: you're playing SVR09+. On its first start the
    game installs the mod's DLC and copies its save in, once, by itself.
 
