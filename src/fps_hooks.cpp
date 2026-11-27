@@ -78,6 +78,12 @@ void SvrCaptionTimeHook(PPCRegister& f1) {
     f1.f64 *= 0.5;
 }
 
+// 60 until the game has set a mode.
+int SvrFrameRateMode() {
+  const uint32_t fps = bd::mem::load<uint32_t>(kFrameRateMode + 8);
+  return fps == 50 || fps == 30 || fps == 25 ? int(fps) : 60;
+}
+
 // Frame counter: SvrFrameSwapHook runs in the game's swap function (sub_8225BD40) right before it
 // calls VdSwap at 0x8225BFA8, once per presented frame.
 namespace {

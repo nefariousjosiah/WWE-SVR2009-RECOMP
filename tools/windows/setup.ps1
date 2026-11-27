@@ -122,7 +122,7 @@ if (Test-Path "$Root\generated\native\shader_cache.cpp") {
 
 The native renderer needs your game's shaders, which aren't in this repository. Collect them once:
   1. Run the game with shader dumping on (it uses the emulated GPU this time):
-       `$env:SVR_DUMP_SHADERS = "logs\shaders"
+       `$env:SVR_DUMP_SHADERS = "`$PWD\logs\shaders"   # the game runs from its build folder: use a full path
        powershell -ExecutionPolicy Bypass -File tools\windows\run.ps1 --gpu_backend=vulkan
      Go through the menus and play a match or two (more variety = more shaders), then quit.
   2. powershell -ExecutionPolicy Bypass -File tools\native\build_shader_cache.ps1
